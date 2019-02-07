@@ -33,9 +33,9 @@ vertex get_normal(vertex v0, vertex v1, vertex v2) {
 #include <CGAL/Alpha_shape_face_base_2.h>
 #include <CGAL/Projection_traits_xy_3.h>
 
-// interval skip list
-#include <CGAL/Interval_skip_list.h>
-#include <CGAL/Interval_skip_list_interval.h>
+// interval list
+#include "interval.hpp"
+
 
 namespace geoflow::nodes::stepedge {
 
@@ -55,6 +55,8 @@ void AlphaShapeNode::process(){
   typedef Alpha_shape_2::Edge_circulator                     Edge_circulator;
 
   auto points = input("points").get<PNL_vector>();
+  auto thres_alpha = param<float>("thres_alpha");
+  auto extract_alpha_rings = param<bool>("extract_alpha_rings");
   
   // collect plane points
   std::unordered_map<int, std::vector<Point>> points_per_segment;
@@ -187,6 +189,10 @@ void Arr2LinearRingsNode::process(){
       }
       linear_rings.push_back(polygon3d);
       attributes["height"].push_back(face->data().elevation_avg);
+      attributes["rms_error"].push_back(face->data().rms_error_to_avg);
+      attributes["max_error"].push_back(face->data().max_error);
+      attributes["coverage"].push_back(face->data().segid_coverage);
+      attributes["count"].push_back(face->data().total_count);
     }
   }
   output("linear_rings").set(linear_rings);
@@ -204,13 +210,18 @@ void ExtruderNode::process(){
   vec3f normals;
   vec1i cell_id_vec1i;
   vec1i labels;
+  vec1f rms_errors, max_errors, segment_coverages;
   using N = uint32_t;
 
   
   size_t cell_id=0;
+  float rms_error, max_error, segment_coverage;
   for (auto face: arr.face_handles()){
     if(face->data().is_finite) {
       cell_id++;
+      rms_error = face->data().rms_error_to_avg;
+      max_error = face->data().max_error;
+      segment_coverage = face->data().segid_coverage;
       vec2f polygon, vertices;
       arrangementface_to_polygon(face, polygon);
       std::vector<N> indices = mapbox::earcut<N>(std::vector<vec2f>({polygon}));
@@ -225,6 +236,9 @@ void ExtruderNode::process(){
           labels.push_back(0);
           normals.push_back({0,0,-1});
           cell_id_vec1i.push_back(cell_id);
+          rms_errors.push_back(rms_error);
+          max_errors.push_back(max_error);
+          segment_coverages.push_back(segment_coverage);
         }
         triangles.push_back(triangle);
       }
@@ -237,6 +251,10 @@ void ExtruderNode::process(){
             labels.push_back(1);
             normals.push_back({0,0,1});
             cell_id_vec1i.push_back(cell_id);
+            rms_errors.push_back(rms_error);
+            rms_errors.push_back(rms_error);
+            max_errors.push_back(max_error);
+            segment_coverages.push_back(segment_coverage);
           }
           triangles.push_back(triangle);
         }
@@ -298,6 +316,15 @@ void ExtruderNode::process(){
         cell_id_vec1i.push_back(0);
         cell_id_vec1i.push_back(0);
         cell_id_vec1i.push_back(0);
+        rms_errors.push_back(-1);
+        rms_errors.push_back(-1);
+        rms_errors.push_back(-1);
+        max_errors.push_back(-1);
+        max_errors.push_back(-1);
+        max_errors.push_back(-1);
+        segment_coverages.push_back(-1);
+        segment_coverages.push_back(-1);
+        segment_coverages.push_back(-1);
 
         // 2nd triangle
         triangles.push_back({u1,u2,l2});
@@ -315,12 +342,24 @@ void ExtruderNode::process(){
         cell_id_vec1i.push_back(0);
         cell_id_vec1i.push_back(0);
         cell_id_vec1i.push_back(0);
+        rms_errors.push_back(-1);
+        rms_errors.push_back(-1);
+        rms_errors.push_back(-1);
+        max_errors.push_back(-1);
+        max_errors.push_back(-1);
+        max_errors.push_back(-1);
+        segment_coverages.push_back(-1);
+        segment_coverages.push_back(-1);
+        segment_coverages.push_back(-1);
       }
     }
   }
   
   output("normals_vec3f").set(normals);
   output("cell_id_vec1i").set(cell_id_vec1i);
+  output("rms_errors").set(rms_errors);
+  output("max_errors").set(max_errors);
+  output("segment_coverages").set(segment_coverages);
   output("triangles").set(triangles);
   output("labels_vec1i").set(labels);
 }
@@ -329,6 +368,15 @@ void ProcessArrangementNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto points = input("points").get<PNL_vector>();
   auto arr = input("arrangement").get<Arrangement_2>();
+
+  config c;
+  c.step_height_threshold = param<float>("step_height_threshold");
+  c.zrange_threshold = param<float>("zrange_threshold");
+  c.merge_segid = param<bool>("merge_segid");
+  c.merge_zrange = param<bool>("merge_zrange");
+  c.merge_step_height = param<bool>("merge_step_height");
+  c.merge_unsegmented = param<bool>("merge_unsegmented");
+  c.merge_dangling_egdes = param<bool>("merge_dangling_egdes");
 
   process_arrangement(points, arr, c);
   
@@ -454,6 +502,13 @@ void DetectLinesNode::process(){
 void ClassifyEdgePointsNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto points = input("points").get<PNL_vector>();
+
+  config c;
+  c.classify_jump_count_min = param<int>("classify_jump_count_min");
+  c.classify_jump_count_max = param<int>("classify_jump_count_max");
+  c.classify_line_dist = param<float>("classify_line_dist");
+  c.classify_jump_ele = param<float>("classify_jump_ele");
+
   std::vector<linedect::Point> edge_points;
   classify_edgepoints(edge_points, points, c);
   output("edge_points").set(edge_points);
@@ -473,6 +528,17 @@ void ClassifyEdgePointsNode::process(){
 void ComputeMetricsNode::process() {
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto points = input("points").get<PointCollection>();
+
+  config c;
+  c.metrics_normal_k = param<int>("metrics_normal_k");
+  c.metrics_plane_min_points = param<int>("metrics_plane_min_points");
+  c.metrics_plane_epsilon = param<float>("metrics_plane_epsilon");
+  c.metrics_plane_normal_threshold = param<float>("metrics_plane_normal_threshold");
+  c.metrics_is_wall_threshold = param<float>("metrics_is_wall_threshold");
+  c.metrics_is_horizontal_threshold = param<float>("metrics_is_horizontal_threshold");
+  c.metrics_k_linefit = param<int>("metrics_k_linefit");
+  c.metrics_k_jumpcnt_elediff = param<int>("metrics_k_jumpcnt_elediff");
+
   PNL_vector pnl_points;
   for (auto& p : points) {
     PNL pv;
@@ -548,7 +614,7 @@ void LASInPolygonsNode::process() {
   //  footprints.push_back(new_fp);
 
   LASreadOpener lasreadopener;
-  lasreadopener.set_file_name(las_filepath);
+  lasreadopener.set_file_name(param<std::string>("las_filepath").c_str());
   LASreader* lasreader = lasreadopener.open();
 
   point_clouds.resize(polygons.size());
@@ -588,6 +654,10 @@ void RegulariseLinesNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto edges = input("edge_segments").get<LineStringCollection>();
   auto footprint = input("footprint").get<LinearRing>();
+
+  auto dist_threshold = param<float>("dist_threshold");
+  auto angle_threshold = param<float>("angle_threshold");
+
   typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_2 Point_2;
   typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_3 Point_3;
   typedef std::array<float,2> arr3f;
@@ -622,10 +692,6 @@ void RegulariseLinesNode::process(){
     lines.push_back(std::make_tuple(angle,p,0,p_.z(), is_footprint, angle, l, id_cntr++));
   }
 
-  // for (auto line: lines) {
-  //   std::cout << std::get<0>(line) << " " << std::get<4>(line) << "\n";
-  // }
-
   //sort by angle, smallest on top
   std::vector<size_t> edge_idx(input_edges.size());
   for (size_t i=0; i<input_edges.size(); ++i) {
@@ -648,13 +714,6 @@ void RegulariseLinesNode::process(){
     last_angle=std::get<0>(line);
   }
 
-  // for (auto cluster: angle_clusters) {
-  //   std::cout << "cluster ..\n";
-  //   for (auto line: cluster) {
-  //     std::cout << std::get<0>(line) << " " << std::get<4>(line) << "\n";
-  //   }
-  // }
-
   // get average angle for each cluster
   // vec3f directions_before, directions_after;
   // vec1i angles;
@@ -664,29 +723,20 @@ void RegulariseLinesNode::process(){
     for(auto& i : cluster.idx) {
       sum+=std::get<0>(lines[i]);
     }
-    cluster.angle = sum/cluster.idx.size();
-
+    double angle = sum/cluster.idx.size();
+    Vector_2 n(-1.0, std::tan(angle));
+    cluster.ref_vec = n/std::sqrt(n.squared_length()); // normalize
+    
     // or median angle:
     // size_t median_id = cluster.idx[cluster.idx.size()/2];
     // cluster.value = std::get<0>(lines[median_id]);
   }
 
-  // std::cout << "\nafter angle snapping...:\n";
-  // for (auto cluster: angle_clusters) {
-  //   std::cout << "cluster ..\n";
-  //   for (auto line: cluster) {
-  //     std::cout << std::get<0>(line) << " " << std::get<4>(line) << "\n";
-  //   }
-  // }
-
   // vec1f distances;
   // snap nearby lines that are close
   std::vector<ValueCluster> dist_clusters;
   for(auto& cluster : angle_clusters) {
-    // compute vec orthogonal to lines in this cluster
-    auto angle = cluster.angle;
-    Vector_2 n(-1.0, std::tan(angle));
-    n = n/std::sqrt(n.squared_length()); // normalize
+    auto n = cluster.ref_vec;
     // compute distances along n wrt to first line in cluster
     auto p = std::get<1>(lines[cluster.idx[0]]);
     for(auto& i : cluster.idx) {
@@ -703,7 +753,7 @@ void RegulariseLinesNode::process(){
     // cluster nearby lines using separation threshold
     double last_dist = std::get<2>(lines[sorted_by_dist[0]]);
     dist_clusters.resize(dist_clusters.size()+1);
-    dist_clusters.back().angle = angle;
+    dist_clusters.back().ref_vec = n;
     for(auto& i : sorted_by_dist) {
       auto& line = lines[i];
       double dist_diff = std::get<2>(line) - last_dist;
@@ -711,31 +761,30 @@ void RegulariseLinesNode::process(){
         dist_clusters.back().idx.push_back(i);
       } else {
         dist_clusters.resize(dist_clusters.size()+1);
-        dist_clusters.back().angle = angle;
+        dist_clusters.back().ref_vec = n;
         dist_clusters.back().idx.push_back(i);
       }
       last_dist = std::get<2>(line);
     }
   }
 
-  // std::cout << "\nafter distance snapping...:\n";
-  // for (auto cluster: dist_clusters) {
-  //   std::cout << "cluster ..\n";
-  //   for (auto line: cluster) {
-  //     std::cout << std::get<2>(line) << " " << std::get<4>(line) << "\n";
-  //   }
-  // }
-
   // compute one line per dist cluster => the one with the highest elevation
   LineStringCollection edges_out;
   // std::vector<std::pair<Point,Point>> edges_out;
+  
   for(auto& cluster : dist_clusters) {
-    // find average distance
-    double sum=0;
+    // find average midpoint
+    // double sum=0;
+    Vector_2 sum_p(0,0);
     for(auto& i : cluster.idx) {
-      sum+=std::get<2>(lines[i]);
+      // sum+=std::get<2>(lines[i]);
+      auto& q = std::get<1>(lines[i]);
+      sum_p += Vector_2(q.x(), q.y());
     }
-    cluster.distance = sum/cluster.idx.size();
+    // cluster.distance = sum/cluster.idx.size();
+    cluster.ref_point = sum_p/cluster.idx.size();
+    cluster.ref_vec = Vector_2(cluster.ref_vec.y(), -cluster.ref_vec.x());
+    
     
     //try to find a footprint line
     linetype best_line;
@@ -784,22 +833,47 @@ void RegulariseLinesNode::process(){
     });
   }
 
-  typedef CGAL::Interval_skip_list_interval<double> Interval;
-  typedef CGAL::Interval_skip_list<Interval> Interval_skip_list;
+  // std::vector<LineCluster> line_clusters;
+  LineStringCollection merged_edges_out;
+  vec1i cluster_labels;
+  int i=0;
   for(auto& cluster : dist_clusters) {
-    Interval_skip_list isl;
-    std::vector<Interval> intervals;
+    LineCluster final_cluster;
+    auto ref_v = cluster.ref_vec;
+    auto ref_p = Point_2(cluster.ref_point.x(), cluster.ref_point.y());
+
+    // IntervalList interval_list;
     for(auto& i : cluster.idx) {
-      edges[i];
-      // intervals[i] = Interval(i, i);
+      bool& is_footprint = std::get<4>(lines[i]);
+      if (!is_footprint) {
+        auto& edge = input_edges[i].first;
+        auto s = Point_2(edge[0][0], edge[0][1]);
+        auto t = Point_2(edge[1][0], edge[1][1]);
+        auto d1 = (s-ref_p)*ref_v;
+        auto d2 = (t-ref_p)*ref_v;
+        // interval_list.insert({d1,d2});
+        auto source = ref_p + d1*ref_v;
+        auto target = ref_p + d2*ref_v;
+        merged_edges_out.push_back({
+          {float(source.x()), float(source.y()), 0},
+          {float(target.x()), float(target.y()), 0}
+        });
+        cluster_labels.push_back(i);
+      }
     }
-    // sort and find extreme vertex along cluster reference line
-    // build interval skip list (?)
     // merge non-footprint segments that have an overlap
-    // clip non footprint segments on overlapping footprint segments
-    // output all resulting segments as a LineCluster
+    // std::cout << "size of intervallist: " << interval_list.size()  << "\n";
+    // auto merged_intervals = interval_list.merge_overlap();
+
+    // for (auto& s : segments_in_cluster) {
+      
+    // }
+    ++i;
+    // clip non footprint segments on overlapping footprint segments?
+    // output all resulting segments as a LineCluster?
   }
 
+  output("merged_edges_out").set(merged_edges_out);
   output("edges_out").set(edges_out);
 }
 
@@ -842,27 +916,21 @@ void LOD13GeneratorNode::process(){
     BuildArrangement_node->input("footprint").set(polygon);
     RegulariseLines_node->input("footprint").set(polygon);
 
-    connect(*ComputeMetrics_node, *AlphaShape_node, "points", "points");
-    connect(*ComputeMetrics_node, *ProcessArrangement_node, "points", "points");
-    connect(*AlphaShape_node, *DetectLines_node, "alpha_rings", "edge_points");
-    connect(*DetectLines_node, *RegulariseLines_node, "edge_segments", "edge_segments");
-    connect(*RegulariseLines_node, *BuildArrangement_node, "edges_out", "edge_segments");
-    connect(*BuildArrangement_node, *ProcessArrangement_node, "arrangement", "arrangement");
-    connect(*ProcessArrangement_node, *Arr2LinearRings_node, "arrangement", "arrangement");
+    connect(ComputeMetrics_node, AlphaShape_node, "points", "points");
+    connect(ComputeMetrics_node, ProcessArrangement_node, "points", "points");
+    connect(AlphaShape_node, DetectLines_node, "alpha_rings", "edge_points");
+    connect(DetectLines_node, RegulariseLines_node, "edge_segments", "edge_segments");
+    connect(RegulariseLines_node, BuildArrangement_node, "edges_out", "edge_segments");
+    connect(BuildArrangement_node, ProcessArrangement_node, "arrangement", "arrangement");
+    connect(ProcessArrangement_node, Arr2LinearRings_node, "arrangement", "arrangement");
 
     // config and run
-    auto panode = dynamic_cast<ProcessArrangementNode&>(*ProcessArrangement_node);
-    panode.c.step_height_threshold = step_height_threshold;
-    panode.c.zrange_threshold = zrange_threshold;
-    panode.c.merge_segid = merge_segid;
-    panode.c.merge_zrange = merge_zrange;
-    panode.c.merge_step_height = merge_step_height;
-    panode.c.merge_unsegmented = merge_unsegmented;
-    panode.c.merge_dangling_egdes = merge_dangling_egdes;
+    // this should copy all parameters from this LOD13Generator node to the ProcessArrangement node
+    ProcessArrangement_node->set_params( dump_params() );
     
-    N.run(*ComputeMetrics_node);
+    N.run(ComputeMetrics_node);
 
-    auto cells = Arr2LinearRings_node->output("linear_rings").get<LinearRingCollection>();
+    auto cells = Arr2LinearRings_node->("linear_rings").get<LinearRingCollection>();
     auto attributes = Arr2LinearRings_node->output("attributes").get<AttributeMap>();
 
     for (int i=0; i<cells.size(); i++) {

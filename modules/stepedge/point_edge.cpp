@@ -355,25 +355,35 @@ void arrangementface_to_polygon(Face_handle face, vec2f& polygons){
   }
 }
 
-inline void merge_faces(Face_handle f1, Face_handle f2) {
-  auto count1 = f1->data().segid_count;
-  auto count2 = f2->data().segid_count;
-  auto sum_count = count1+count2;
-  auto new_elevation = f1->data().elevation_avg * (count1/sum_count) + f2->data().elevation_avg * (count2/sum_count);
-  f2->data().elevation_avg = f1->data().elevation_avg = new_elevation;
-  // and sum the counts
-  f2->data().segid_count = f1->data().segid_count = sum_count;
-  f1->data().elevation_min = f2->data().elevation_min = std::min(f1->data().elevation_min, f2->data().elevation_min);
-  f1->data().elevation_max = f2->data().elevation_min = std::max(f1->data().elevation_max, f2->data().elevation_max);
-}
+// inline void merge_faces(Face_handle f1, Face_handle f2) {
+//   // we modify both faces since we don't know which one will remain (should look again at the arrangement observer class...)
+//   auto count1 = f1->data().segid_count;
+//   auto count2 = f2->data().segid_count;
+//   auto sum_count = count1+count2;
+//   auto new_elevation = f1->data().elevation_avg * (count1/sum_count) + f2->data().elevation_avg * (count2/sum_count);
+//   f2->data().elevation_avg = f1->data().elevation_avg = new_elevation;
+//   // and sum the counts
+//   f2->data().segid_count = f1->data().segid_count = sum_count;
+//   f1->data().elevation_min = f2->data().elevation_min = std::min(f1->data().elevation_min, f2->data().elevation_min);
+//   f1->data().elevation_max = f2->data().elevation_min = std::max(f1->data().elevation_max, f2->data().elevation_max);
+//   // merge the point lists
+//   if (f1==f2){
+//     std::cout << "merging the same face!?\n";
+//     return;
+//   }
+//   f1->data().points.insert(f1->data().points.end(), f2->data().points.begin(), f2->data().points.end() );
+//   f2->data().points.insert(f2->data().points.end(), f1->data().points.begin(), f1->data().points.end() );
+// }
 
 // convert each face to polygon and compute an average elevation
 void process_arrangement(PNL_vector& points, Arrangement_2& arr, config c) {
   typedef CGAL::Arr_walk_along_line_point_location<Arrangement_2> Point_location;
   
+  Face_merge_observer obs (arr);
 
   Point_location   pl(arr);
   std::unordered_map<Face_handle, std::vector<PNL>> points_per_face;
+  // std::unordered_set<Face_handle> faces_with_points;
 
   // collect for each face the points it contains
   for (auto& p : points){
@@ -382,15 +392,18 @@ void process_arrangement(PNL_vector& points, Arrangement_2& arr, config c) {
     if ((!is_wall) && is_on_plane){
       auto obj = pl.locate( Point_2(boost::get<0>(p).x(), get<0>(p).y()) );
       if (auto f = boost::get<Face_const_handle>(&obj)) {
-        points_per_face[arr.non_const_handle(*f)].push_back(p);
+        auto fh = arr.non_const_handle(*f);
+        fh->data().points.push_back(p);
+        points_per_face[fh].push_back(p);
+        // faces_with_points.insert(fh);
       }
     }
   }
   
   // check for the points in each face what segment occurs most often
-  for(auto face_points : points_per_face) {
-    auto fh = face_points.first;
-    auto fpoints = face_points.second;
+  for(auto ppf : points_per_face) {
+    auto fh = ppf.first;
+    auto& fpoints = ppf.second;
 
     std::unordered_map<size_t,size_t> segment_histogram;
     for (auto& p : fpoints) {
@@ -432,7 +445,7 @@ void process_arrangement(PNL_vector& points, Arrangement_2& arr, config c) {
       if((f1->data().is_finite && f2->data().is_finite) && (f1->data().segid!=0 && f2->data().segid!=0)) {
         if(f1->data().segid == f2->data().segid){
           // elevation of new face is a weighted sum of elevation_avg of two old faces
-          merge_faces(f1,f2);
+          // merge_faces(f1,f2);
           arr.remove_edge(edge); // should add face merge call back in face observer class...
         }
       }
@@ -455,7 +468,7 @@ void process_arrangement(PNL_vector& points, Arrangement_2& arr, config c) {
         if(((z2_max+c.zrange_threshold) > z1_min) && ((z2_min-c.zrange_threshold) < z1_max)) {
           // should add face merge call back in face observer class...
           // elevation of new face is a weighted sum of elevation_avg of two old faces
-          merge_faces(f1,f2);
+          // merge_faces(f1,f2);
           arr.remove_edge(edge);
         }
       }
@@ -521,6 +534,24 @@ void process_arrangement(PNL_vector& points, Arrangement_2& arr, config c) {
       }
     }
   }
+
+  // compute final errors
+  for (auto face: arr.face_handles()){
+    if (face->data().is_finite) {
+      auto cnt = face->data().points.size();
+      if (cnt>0) {
+        auto z = face->data().elevation_avg;
+        double square_sum = 0;
+        for (auto& p : face->data().points) {
+          float d = z - boost::get<0>(p).z();
+          square_sum += d*d;
+          face->data().max_error = std::max(face->data().max_error, std::abs(d));
+        }
+        face->data().rms_error_to_avg = CGAL::sqrt(square_sum/cnt);
+      }
+      face->data().total_count = cnt;
+    }
+  }
   // // cleanup faces with segid==0 by merging them to valid neighbour with most shared edges
   // {
   //   // collect empty faces
@@ -569,6 +600,5 @@ void process_arrangement(PNL_vector& points, Arrangement_2& arr, config c) {
   //     }
   //   }
         
-    
   // }
 }
