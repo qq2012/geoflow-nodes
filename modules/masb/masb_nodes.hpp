@@ -2,6 +2,7 @@
 
 #include <compute_ma_processing.h>
 #include <compute_normals_processing.h>
+#include "Ma_geometry_processing.hpp"
 
 namespace geoflow::nodes::mat {
 
@@ -44,9 +45,7 @@ namespace geoflow::nodes::mat {
   };
 
   class MaGeometryNode :public Node {
-      //segmentation_bisec
   public:
-      //masb::normals_parameters params;
       using Node::Node;
       void init() {
           add_input("points", TT_point_collection);
@@ -55,6 +54,8 @@ namespace geoflow::nodes::mat {
           add_input("ma_qidx", TT_vec1i);
           add_input("ma_radius", TT_vec_float);
           add_input("ma_is_interior", TT_vec1i);
+          add_output("ma_SeparationAng", TT_vec1f);
+          add_output("ma_bisector", TT_vec3f);
       }
       void process();
   };

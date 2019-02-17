@@ -1,5 +1,6 @@
 add_library(masb_nodes STATIC
   masb_nodes.cpp
+  Ma_geometry_processing.cpp
 )
 target_link_libraries( masb_nodes
   geoflow-core
