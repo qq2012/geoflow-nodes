@@ -22,11 +22,14 @@ void ComputeMedialAxisNode::process(){
     normals.push_back(masb::Vector(n.data()));
   }
   masb::PointList ma_coords_(madata.m*2);
+  std::vector<float> ma_radius_(madata.m * 2);
   std::vector<int> ma_qidx_(madata.m*2);
+  
   
   madata.coords = &coords;
   madata.normals = &normals;
   madata.ma_coords = &ma_coords_;
+  madata.ma_radius = &ma_radius_;
   madata.ma_qidx = ma_qidx_.data();
 
   masb::compute_masb_points(params, madata);
@@ -43,11 +46,18 @@ void ComputeMedialAxisNode::process(){
     ma_coords.push_back({c[0], c[1], c[2]});
   }
 
+  vec1f ma_radius;
+  ma_radius.reserve(madata.m * 2);
+  for (auto& c : *madata.ma_radius) {
+      ma_radius.push_back(c);
+  }
+
   vec1i ma_is_interior(madata.m*2, 0);
   std::fill_n(ma_is_interior.begin(), madata.m, 1);
 
   output("ma_coords").set(ma_coords);
   output("ma_qidx").set(ma_qidx);
+  output("ma_radius").set(ma_radius);
   output("ma_is_interior").set(ma_is_interior);
 }
 
@@ -76,5 +86,20 @@ void ComputeNormalsNode::process(){
 
   output("normals").set(normals_vec3f);
 }
+void MedialBisecSegmentNode::process() {
+    /*
+    auto point_collection = input("points").get<PointCollection>();
+    auto ma_pt = input("ma_coords").get<PointCollection>();
+    vec1i seg_id_TT_vec1i;
+    output("seg_id").set(seg_id_TT_vec1i);
 
+    
+    add_input("points", TT_point_collection);
+          add_input("ma_coords", TT_point_collection);
+          add_input("ma_qidx", TT_vec1i);
+          add_input("ma_is_interior", TT_vec1i);
+          add_output("seg_id", TT_vec1i);
+    */
+
+}
 }
