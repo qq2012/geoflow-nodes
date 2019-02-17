@@ -17,6 +17,7 @@ namespace geoflow::nodes::mat {
       add_output("ma_coords", TT_point_collection);
       add_output("ma_qidx", TT_vec1i);
       add_output("ma_is_interior", TT_vec1i);
+      add_output("ma_radius", TT_vec_float);
     }
     void gui(){
       ImGui::SliderFloat("initial_radius", &params.initial_radius, 0, 1000);
@@ -40,5 +41,35 @@ namespace geoflow::nodes::mat {
       ImGui::SliderInt("K", &params.k, 1, 100);
     }
     void process();
+  };
+
+  class MaGeometryNode :public Node {
+      //segmentation_bisec
+  public:
+      //masb::normals_parameters params;
+      using Node::Node;
+      void init() {
+          add_input("points", TT_point_collection);
+          add_input("normals", TT_vec3f);
+          add_input("ma_coords", TT_point_collection);
+          add_input("ma_qidx", TT_vec1i);
+          add_input("ma_radius", TT_vec_float);
+          add_input("ma_is_interior", TT_vec1i);
+      }
+      void process();
+  };
+  class MedialBisecSegmentNode :public Node {
+      //segmentation_bisec
+  public:
+      //masb::normals_parameters params;
+      using Node::Node;
+      void init() {
+          add_input("points", TT_point_collection);
+          add_input("ma_coords", TT_point_collection);
+          //add_input("ma_qidx", TT_vec1i);
+          add_input("ma_is_interior", TT_vec1i);
+          add_output("seg_id", TT_vec1i);
+      }
+      void process();
   };
 }
