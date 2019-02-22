@@ -21,7 +21,7 @@ namespace geoflow::nodes::mat {
       add_output("ma_coords", TT_point_collection);
       add_output("ma_qidx", TT_vec1i);
       add_output("ma_is_interior", TT_vec1i);
-      add_output("ma_radius", TT_vec_float);
+      add_output("ma_radius", TT_vec1f);
     }
     void gui(){
       ImGui::SliderFloat("initial_radius", &params.initial_radius, 0, 1000);
