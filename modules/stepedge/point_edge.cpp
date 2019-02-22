@@ -4,6 +4,14 @@
 #include <unordered_map>
 #include <boost/tuple/tuple.hpp>
 
+Polygon_2 ring_to_cgal_polygon(geoflow::LinearRing& ring) {
+  std::vector<Point_2> footprint_pts;
+  for (auto p : ring) {
+    footprint_pts.push_back(Point_2(p[0], p[1]));
+  }
+  return Polygon_2(footprint_pts.begin(), footprint_pts.end());
+}
+
 void pc_in_footprint(std::string las_filename, std::vector<bg::model::polygon<point_type>> &footprints, std::vector<PNL_vector> &points_vec) {
   LASreadOpener lasreadopener;
   lasreadopener.set_file_name(las_filename.c_str());
@@ -83,7 +91,7 @@ void compute_metrics(PNL_vector &points, config c) {
   PD.min_segment_count = c.metrics_plane_min_points;
   PD.N = c.metrics_normal_k;
   PD.detect();
-  std::cout << PD.segment_shapes.size() << " shapes detected." << std::endl;
+  // std::cout << PD.segment_shapes.size() << " shapes detected." << std::endl;
 
   // // Instantiates shape detection engine.
   // Region_growing shape_detection;
@@ -263,7 +271,7 @@ void detect_lines(std::vector<std::pair<Point,Point>> & edge_segments, std::vect
 }
 
 void build_arrangement(geoflow::LinearRing &footprint, geoflow::LineStringCollection & edge_segments, Arrangement_2 &arr, bool remove_unsupported){
-  Face_index_observer obs (arr);
+  Face_split_observer obs (arr);
   // const double s = 100;
 
   // insert footprint segments
@@ -338,20 +346,25 @@ void build_arrangement(geoflow::LinearRing &footprint, geoflow::LineStringCollec
   }
 }
 
-void arrangementface_to_polygon(Face_handle face, vec2f& polygons){
-  if(face->data().is_finite){ // ie it is a face on the interior of the footprint
-    auto he = face->outer_ccb();
-    auto first = he;
+// void build_arrangement(geoflow::LinearRing &footprint, geoflow::LinearRingCollection & rings, Arrangement_2 &arr, geoflow::vec1i& plane_idx, bool remove_unsupported){
 
-    while(true){
+// }
+
+void arrangementface_to_polygon(Face_handle face, vec2f& polygons){
+  // if(extract_face){ // ie it is a face on the interior of the footprint
+  auto he = face->outer_ccb();
+  auto first = he;
+
+  while(true){
+    // if (!he->source()- at_infinity())
       polygons.push_back({
         float(CGAL::to_double(he->source()->point().x())),
         float(CGAL::to_double(he->source()->point().y()))
       });
 
-      he = he->next();
-      if (he==first) break;
-    }
+    he = he->next();
+    if (he==first) break;
+  // }
   }
 }
 
