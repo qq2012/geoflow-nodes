@@ -3,6 +3,9 @@
 #include <compute_ma_processing.h>
 #include <compute_normals_processing.h>
 #include "Ma_geometry_processing.hpp"
+#include "Ma_utility.h"
+//#include "Ma_Segmentation_processing.h"
+
 
 namespace geoflow::nodes::mat {
 
@@ -50,26 +53,43 @@ namespace geoflow::nodes::mat {
       void init() {
           add_input("points", TT_point_collection);
           add_input("normals", TT_vec3f);
-          add_input("ma_coords", TT_point_collection);
+          //add_input("ma_coords", TT_point_collection);
           add_input("ma_qidx", TT_vec1i);
-          add_input("ma_radius", TT_vec_float);
-          add_input("ma_is_interior", TT_vec1i);
+          //add_input("ma_radius", TT_vec_float);
+          //add_input("ma_is_interior", TT_vec1i);
           add_output("ma_SeparationAng", TT_vec1f);
           add_output("ma_bisector", TT_vec3f);
       }
       void process();
   };
-  class MedialBisecSegmentNode :public Node {
-      //segmentation_bisec
+  class FilterRNode :public Node {
   public:
-      //masb::normals_parameters params;
+      masb::Filter8R params;
+      using Node::Node;
+      void init() {
+          add_input("ma_radius", TT_vec_float);
+          add_output("remaining_idx", TT_vec1i);
+      }
+      void gui() {
+          ImGui::SliderFloat("no radius larger than", &params.radius, 0, 1000);
+      }
+      void process();
+
+  };
+  class MedialSegmentNode :public Node {
+  public:
+      //masb::MaSeg_power params;
       using Node::Node;
       void init() {
           add_input("points", TT_point_collection);
           add_input("ma_coords", TT_point_collection);
+          add_input("remaining_idx", TT_vec1i);
           //add_input("ma_qidx", TT_vec1i);
           add_input("ma_is_interior", TT_vec1i);
           add_output("seg_id", TT_vec1i);
+      }
+      void gui() {
+          //ImGui::SliderFloat("no radius larger than", &params.radius, 0, 1000);
       }
       void process();
   };
