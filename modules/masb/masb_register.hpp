@@ -7,7 +7,8 @@ namespace geoflow::nodes::mat {
     R.register_node<ComputeMedialAxisNode>("ComputeMedialAxisNode");
     R.register_node<ComputeNormalsNode>("ComputeNormalsNode");
     R.register_node<MaGeometryNode>("MaGeometryNode");
-    R.register_node<MedialBisecSegmentNode>("MedialBisecSegmentNode");
+    R.register_node<FilterRNode>("FilterRNode");
+    R.register_node<MedialSegmentNode>("MedialSegmentNode");
     return R;
   }
 

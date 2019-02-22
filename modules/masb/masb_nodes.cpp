@@ -90,9 +90,9 @@ void ComputeNormalsNode::process(){
 void MaGeometryNode::process() {
     auto point_collection = input("points").get<PointCollection>();
     auto normals_vec3f = input("normals").get<vec3f>();
-    auto ma_coords_collection = input("ma_coords").get<PointCollection>();
+    //auto ma_coords_collection = input("ma_coords").get<PointCollection>();
     auto ma_qidx_vec1i = input("ma_qidx").get<vec1i>();
-    auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
+    //auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
     //auto ma_is_interior_vec1i = input("ma_is_interior").get<vec1i>();
 
     masb::ma_data madata;
@@ -108,21 +108,25 @@ void MaGeometryNode::process() {
     for (auto& n : normals_vec3f) {
         normals.push_back(masb::Vector(n.data()));
     }
+    /*
     masb::PointList ma_coords;
     ma_coords.reserve(madata.m*2);
     for (auto& p : ma_coords_collection) {
         ma_coords.push_back(masb::Point(p.data()));
     }
+    */
     masb::intList ma_qidx;
     ma_qidx.reserve(madata.m * 2);
     for (size_t i = 0; i < madata.m * 2; ++i) {
         ma_qidx.push_back(ma_qidx_vec1i[i]);
     }
+    /*
     masb::floatList ma_radius;
     ma_radius.reserve(madata.m * 2);
     for (size_t i = 0; i < madata.m * 2; ++i) {
         ma_radius.push_back(ma_radius_vec1f[i]);
     }
+    */
     vec1i ma_is_interior(madata.m * 2, 0);
     std::fill_n(ma_is_interior.begin(), madata.m, 1);
     /*
@@ -134,9 +138,9 @@ void MaGeometryNode::process() {
     */
     madata.coords = &coords;
     madata.normals = &normals;
-    madata.ma_coords = &ma_coords;
+    //madata.ma_coords = &ma_coords;
     madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????????????????
-    madata.ma_radius = &ma_radius;
+    //madata.ma_radius = &ma_radius;
 
     
     std::vector<float> ma_SeparationAng_(madata.m * 2);
@@ -162,20 +166,18 @@ void MaGeometryNode::process() {
     output("ma_bisector").set(ma_bisector);
 }
 
-void MedialBisecSegmentNode::process() {
-    /*
-    auto point_collection = input("points").get<PointCollection>();
-    auto ma_pt = input("ma_coords").get<PointCollection>();
-    vec1i seg_id_TT_vec1i;
-    output("seg_id").set(seg_id_TT_vec1i);
+void FilterRNode::process() {
+    auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
+    vec1i remaining_idx;
+    for (size_t i = 0; ma_radius_vec1f.size(); ++i) {
+        if (ma_radius_vec1f[i] >= params.radius)
+            remaining_idx.push_back(i);
+    }
+    output("remaining_idx").set(remaining_idx);
+}
 
-    
-    add_input("points", TT_point_collection);
-          add_input("ma_coords", TT_point_collection);
-          add_input("ma_qidx", TT_vec1i);
-          add_input("ma_is_interior", TT_vec1i);
-          add_output("seg_id", TT_vec1i);
-    */
+
+void MedialSegmentNode::process() {
 
 }
 }
