@@ -6,7 +6,7 @@ using namespace masb;
 using namespace std;
 
 
-static const double PI = 3.14159265358979323846264338327950288;
+//static const double PI = 3.14159265358979323846264338327950288;
 
 void MaSeg_power::update() {
     this->bisec_thres = cos(this->bisecavg_thres / 180.0)*PI;
@@ -19,8 +19,5 @@ void MaSeg_power::update() {
 void MaSegProcess::processing(ma_data &madata,ma_Geometry &maGeometry) {
     MaSegProcess SegProcesser;
     SegProcesser.power.update();
-
-
-
 
 }

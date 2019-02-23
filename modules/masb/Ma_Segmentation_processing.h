@@ -17,7 +17,7 @@
 namespace masb{
     
   typedef CGAL::Exact_predicates_inexact_constructions_kernel cgal_kernel;
-  typedef cgal_kernel::Point_3 Point;
+  typedef cgal_kernel::Point_3 cgalPoint;
   //typedef cgal_kernel::Vector_3 Vector;
   //typedef cgal_kernel::Plane_3 Plane;
   
@@ -57,7 +57,7 @@ namespace masb{
 
   class MaSegProcess{
       
-    typedef std::pair<Point,size_t> point_index;
+    typedef std::pair<cgalPoint,size_t> point_index;
     /*
     typedef CGAL::Search_traits_3<cgal_kernel>  Traits_base;
     typedef CGAL::Search_traits_adapter<point_index,
