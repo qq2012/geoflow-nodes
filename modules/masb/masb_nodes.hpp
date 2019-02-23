@@ -67,7 +67,7 @@ namespace geoflow::nodes::mat {
       masb::Filter8R params;
       using Node::Node;
       void init() {
-          add_input("ma_radius", TT_vec_float);
+          add_input("ma_radius", TT_vec1f);
           add_output("remaining_idx", TT_vec1i);
       }
       void gui() {

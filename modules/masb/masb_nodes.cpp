@@ -170,9 +170,10 @@ void FilterRNode::process() {
     auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
     vec1i remaining_idx;
     for (size_t i = 0; ma_radius_vec1f.size(); ++i) {
-        if (ma_radius_vec1f[i] >= params.radius)
+        if (ma_radius_vec1f[i] < params.radius)
             remaining_idx.push_back(i);
     }
+    std::cout << remaining_idx.data() << '\n';
     output("remaining_idx").set(remaining_idx);
 }
 

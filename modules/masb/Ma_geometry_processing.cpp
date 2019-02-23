@@ -1,4 +1,5 @@
 #include "Ma_geometry_processing.hpp"
+
 #include <kdtree2/kdtree2.hpp>
 
 #include <cmath>
@@ -41,9 +42,10 @@ namespace masb {
                 (*maGeometry.ma_bisector)[i] = res.bisector;
                 (*maGeometry.ma_SeperationAng)[i] = res.SepAng;
             }
-            
-        }
-
-        
+            else {
+                std::cout << "There is a all not shriking\n";
+            }
+        } 
     }
+
 }

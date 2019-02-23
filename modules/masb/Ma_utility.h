@@ -7,9 +7,12 @@ namespace masb{
     public:
         float radius;	 	
 	}; 
-    class ind_filter {
+    class idx_filter {
     public:
-        void processing(ma_data &madata, ma_Geometry &maGeometry,intList &remaining_idx);
+        void processing(ma_data &madata, ma_Geometry &maGeometry,intList &remaining_idx, 
+            ma_data &remainingData, intList &remainingma_in_out, ma_Geometry &remainingGeometry);
+        void processing(ma_data &madata, intList &remaining_idx,
+            ma_data &remainingData, intList &remainingma_in_out);
     };
 }
 
