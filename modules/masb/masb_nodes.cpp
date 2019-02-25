@@ -1,5 +1,5 @@
 #include "masb_nodes.hpp"
-
+#include <iostream>
 #include <algorithm>
 
 namespace geoflow::nodes::mat {
@@ -90,10 +90,7 @@ void ComputeNormalsNode::process(){
 void MaGeometryNode::process() {
     auto point_collection = input("points").get<PointCollection>();
     auto normals_vec3f = input("normals").get<vec3f>();
-    //auto ma_coords_collection = input("ma_coords").get<PointCollection>();
     auto ma_qidx_vec1i = input("ma_qidx").get<vec1i>();
-    //auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
-    //auto ma_is_interior_vec1i = input("ma_is_interior").get<vec1i>();
 
     masb::ma_data madata;
     madata.m = point_collection.size();
@@ -108,13 +105,7 @@ void MaGeometryNode::process() {
     for (auto& n : normals_vec3f) {
         normals.push_back(masb::Vector(n.data()));
     }
-    /*
-    masb::PointList ma_coords;
-    ma_coords.reserve(madata.m*2);
-    for (auto& p : ma_coords_collection) {
-        ma_coords.push_back(masb::Point(p.data()));
-    }
-    */
+    
     masb::intList ma_qidx;
     ma_qidx.reserve(madata.m * 2);
     for (size_t i = 0; i < madata.m * 2; ++i) {
@@ -168,16 +159,76 @@ void MaGeometryNode::process() {
 
 void FilterRNode::process() {
     auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
+    std::cout <<"params.radius"<< params.radius<< "\n";
     vec1i remaining_idx;
     for (size_t i = 0; ma_radius_vec1f.size(); ++i) {
-        if (ma_radius_vec1f[i] >= params.radius)
+        std::cout << ma_radius_vec1f[i] << "\n";
+
+        if (ma_radius_vec1f[i] < params.radius)
             remaining_idx.push_back(i);
     }
+    std::cout << remaining_idx.data() << '\n';
     output("remaining_idx").set(remaining_idx);
 }
 
-
 void MedialSegmentNode::process() {
+    auto remaining_idx_vec1i = input("remaining_idx").get<vec1i>();
+    //auto point_collection = input("points").get<PointCollection>();
+    auto ma_coords_collection = input("ma_coords").get<PointCollection>();
+    auto ma_SeparationAng_vec1f = input("ma_SeparationAng").get<vec1f>();
+    auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
+    
+//better way???
+    masb::intList remaining_idx, remainingma_in_out;
+    for (auto& i : remaining_idx_vec1i) {
+        remaining_idx.push_back(int(i));
+    }
 
+    masb::ma_data madata, remainingData;
+    /*
+    madata.m = point_collection.size();
+    masb::PointList coords;
+    coords.reserve(madata.m);
+    for (auto& p : point_collection) {
+        coords.push_back(masb::Point(p.data()));
+    }
+    */
+    masb::PointList ma_coords;
+    ma_coords.reserve(madata.m*2);
+    for (auto& p : ma_coords_collection) {
+        ma_coords.push_back(masb::Point(p.data()));
+    }
+    //madata.coords = &coords;
+    madata.ma_coords = &ma_coords;
+
+    masb::ma_Geometry maGeometry, remainingGeometry;
+    masb::floatList ma_SeparationAng;
+    ma_SeparationAng.reserve(madata.m * 2);
+    for (auto & a : ma_SeparationAng_vec1f) {
+        ma_SeparationAng.push_back(float(a));
+    }
+    masb::VectorList ma_bisector;
+    ma_bisector.reserve(madata.m * 2);
+    for (auto& v : ma_bisector_vec3f) {
+        ma_bisector.push_back(masb::Vector(v.data()));
+    }
+    maGeometry.ma_SeperationAng = &ma_SeparationAng;
+    maGeometry.ma_bisector = &ma_bisector;
+
+    vec1i ma_is_interior(madata.m * 2, 0);
+    std::fill_n(ma_is_interior.begin(), madata.m, 1);
+
+    masb::idx_filter filter;
+    filter.processing(madata, maGeometry, remaining_idx, 
+        remainingData, remainingma_in_out, remainingGeometry);
+
+    masb::MaSegProcess segmentation;
+    segmentation.processing(remainingData, remainingma_in_out, remainingGeometry);
+
+    vec1i seg_id_;
+    for (auto & idx : segmentation.point_segment_idx)
+        seg_id_.push_back(idx);
+
+    output("seg_id").set(seg_id_);
 }
 }

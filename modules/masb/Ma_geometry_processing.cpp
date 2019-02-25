@@ -1,4 +1,5 @@
 #include "Ma_geometry_processing.hpp"
+
 #include <kdtree2/kdtree2.hpp>
 
 #include <cmath>
@@ -19,12 +20,13 @@ namespace masb {
     }
 
     void compute_ma_geometry(ma_data &madata, ma_Geometry &maGeometry) {
+        /*
         if (madata.kdtree_coords == NULL) {
             madata.kdtree_coords = new kdtree2::KDTree((*madata.coords));
             //???????????????????input_parameters.kd_tree_reorder
         }
         madata.kdtree_coords->sort_results = true;//?????????
-
+        */
         //auto p = (*madata.coords)[i];
         //??????????????????????????????????????????????????
         //   qindx ---- the indx in kdtree or in ma.coords?
@@ -33,17 +35,21 @@ namespace masb {
         Vector p_norm, q_norm;
 
         #pragma omp parallel for private(p_norm,q_norm)
-        for (int i = 0; i < madata.m * 2; ++i) {
+        for (int i = 0; i < madata.m*2; ++i) {
             if (madata.ma_qidx[i] != -1) {
-                p_norm = (*madata.normals)[i];
+                if (i<madata.m)
+                    p_norm = (*madata.normals)[i];
+                else
+                    p_norm = -(*madata.normals)[i - madata.m];
                 q_norm = (*madata.normals)[madata.ma_qidx[i]];
                 maGeom_result res = Geom4pt(p_norm, q_norm);
                 (*maGeometry.ma_bisector)[i] = res.bisector;
                 (*maGeometry.ma_SeperationAng)[i] = res.SepAng;
             }
-            
-        }
-
-        
+            else {
+                std::cout << "There is a all not shriking\n";
+            }
+        } 
     }
+
 }
