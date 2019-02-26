@@ -82,17 +82,14 @@ namespace geoflow::nodes::mat {
       using Node::Node;
       void init() {
           add_input("remaining_idx", TT_vec1i);
-          //add_input("points", TT_point_collection);
-          //add_input("normals", TT_vec3f);
           add_input("ma_coords", TT_point_collection);
-          //add_input("ma_qidx", TT_vec1i);
           add_input("ma_radius", TT_vec1f);
           add_input("ma_SeparationAng", TT_vec1f);
           add_input("ma_bisector", TT_vec3f);
           add_output("seg_id", TT_vec1i);
       }
       void gui() {
-          //ImGui::SliderFloat("no radius larger than", &params.radius, 0, 1000);
+          //for different method have different input
       }
       void process();
 

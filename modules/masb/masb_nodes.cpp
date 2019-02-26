@@ -48,8 +48,8 @@ void ComputeMedialAxisNode::process(){
 
   vec1f ma_radius;
   ma_radius.reserve(madata.m * 2);
-  for (auto& c : *madata.ma_radius) {
-      ma_radius.push_back(c);
+  for (auto& r : *madata.ma_radius) {
+      ma_radius.push_back(r);
   }
 
   vec1i ma_is_interior(madata.m*2, 0);
@@ -104,36 +104,18 @@ void MaGeometryNode::process() {
     normals.reserve(madata.m);
     for (auto& n : normals_vec3f) {
         normals.push_back(masb::Vector(n.data()));
-    }
-    
+    }    
     masb::intList ma_qidx;
     ma_qidx.reserve(madata.m * 2);
     for (size_t i = 0; i < madata.m * 2; ++i) {
         ma_qidx.push_back(ma_qidx_vec1i[i]);
     }
-    /*
-    masb::floatList ma_radius;
-    ma_radius.reserve(madata.m * 2);
-    for (size_t i = 0; i < madata.m * 2; ++i) {
-        ma_radius.push_back(ma_radius_vec1f[i]);
-    }
-    */
     vec1i ma_is_interior(madata.m * 2, 0);
     std::fill_n(ma_is_interior.begin(), madata.m, 1);
-    /*
-    masb::intList ma_is_interior;
-    ma_is_interior.reserve(madata.m * 2);
-    for (size_t i = 0; i < madata.m * 2; ++i) {
-        ma_is_interior.push_back(ma_is_interior_vec1i[i]);
-    }
-    */
     madata.coords = &coords;
     madata.normals = &normals;
-    //madata.ma_coords = &ma_coords;
     madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????????????????
-    //madata.ma_radius = &ma_radius;
 
-    
     std::vector<float> ma_SeparationAng_(madata.m * 2);
     masb::VectorList ma_bisector_(madata.m * 2);
     masb::ma_Geometry maGeometry;
@@ -159,11 +141,8 @@ void MaGeometryNode::process() {
 
 void FilterRNode::process() {
     auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
-    std::cout <<"params.radius"<< params.radius<< "\n";
     vec1i remaining_idx;
-    for (size_t i = 0; ma_radius_vec1f.size(); ++i) {
-        std::cout << ma_radius_vec1f[i] << "\n";
-
+    for (size_t i = 0; i< ma_radius_vec1f.size()-1; ++i) {
         if (ma_radius_vec1f[i] < params.radius)
             remaining_idx.push_back(i);
     }
@@ -173,34 +152,24 @@ void FilterRNode::process() {
 
 void MedialSegmentNode::process() {
     auto remaining_idx_vec1i = input("remaining_idx").get<vec1i>();
-    //auto point_collection = input("points").get<PointCollection>();
     auto ma_coords_collection = input("ma_coords").get<PointCollection>();
     auto ma_SeparationAng_vec1f = input("ma_SeparationAng").get<vec1f>();
     auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
-    
-//better way???
-    masb::intList remaining_idx, remainingma_in_out;
+    //better way???
+    masb::intList remaining_idx;
     for (auto& i : remaining_idx_vec1i) {
         remaining_idx.push_back(int(i));
     }
 
     masb::ma_data madata, remainingData;
-    /*
-    madata.m = point_collection.size();
-    masb::PointList coords;
-    coords.reserve(madata.m);
-    for (auto& p : point_collection) {
-        coords.push_back(masb::Point(p.data()));
-    }
-    */
+    madata.m = ma_coords_collection.size() / 2;
     masb::PointList ma_coords;
     ma_coords.reserve(madata.m*2);
     for (auto& p : ma_coords_collection) {
-        ma_coords.push_back(masb::Point(p.data()));
+        ma_coords.push_back(masb::Point());
     }
-    //madata.coords = &coords;
     madata.ma_coords = &ma_coords;
-
+    
     masb::ma_Geometry maGeometry, remainingGeometry;
     masb::floatList ma_SeparationAng;
     ma_SeparationAng.reserve(madata.m * 2);
@@ -214,13 +183,19 @@ void MedialSegmentNode::process() {
     }
     maGeometry.ma_SeperationAng = &ma_SeparationAng;
     maGeometry.ma_bisector = &ma_bisector;
-
+    /*
     vec1i ma_is_interior(madata.m * 2, 0);
     std::fill_n(ma_is_interior.begin(), madata.m, 1);
-
+    */
+    masb::intList remainingma_in_out;
     masb::idx_filter filter;
     filter.processing(madata, maGeometry, remaining_idx, 
         remainingData, remainingma_in_out, remainingGeometry);
+    for (size_t i = 0; i < remaining_idx.size() - 1; ++i) {
+        auto v = (*remainingGeometry.ma_bisector)[i];
+        std::cout << v[0]<<" "<<v[1]<<" "<<v[2] << "\n";
+        std::cout << (*remainingGeometry.ma_SeperationAng)[i] << "\n";
+    }
 
     masb::MaSegProcess segmentation;
     segmentation.processing(remainingData, remainingma_in_out, remainingGeometry);

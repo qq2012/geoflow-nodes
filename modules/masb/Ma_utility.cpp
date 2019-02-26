@@ -7,16 +7,19 @@ namespace masb {
 
         std::vector<int> ma_is_interior(madata.m * 2, 0);
         std::fill_n(ma_is_interior.begin(), madata.m, 1);
+        
+        remainingData.m = madata.m;
+        remainingData.coords = madata.coords;
+        remainingData.normals = madata.normals;
+        size_t size = remaining_idx.size();
+        PointList re_coords_(size);
+        floatList re_radius_(size);
+        intList re_qidx_(size);
+        VectorList re_bisector_(size);
+        floatList re_SeperationAng_(size);
+        remainingma_in_out.reserve(size);
 
-        remainingData.m = remaining_idx.size();
-        PointList re_coords_(remainingData.m);
-        floatList re_radius_(remainingData.m);
-        intList re_qidx_(remainingData.m);
-        VectorList re_bisector_(remainingData.m);
-        floatList re_SeperationAng_(remainingData.m);
-        remainingma_in_out.reserve(remainingData.m);
-
-        for (int i : remaining_idx) {
+        for (int &i : remaining_idx) {
             re_coords_.push_back((*madata.ma_coords)[i]);
             re_radius_.push_back((*madata.ma_radius)[i]);
             re_qidx_.push_back(madata.ma_qidx[i]);//why different????

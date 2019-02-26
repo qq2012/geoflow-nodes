@@ -86,7 +86,10 @@ void MaSegProcess::processing(ma_data &madata, intList &remainingma_in_out,ma_Ge
     while (initial_seed_idx) {
         grow_sheet(initial_seed_idx,madata, maGeometry);
         sheet_counter++;
-        if(!if_all_segmented())
+        if (!if_all_segmented())
             initial_seed_idx = findseed();
+        else
+            initial_seed_idx = NULL;
     }
+    std::cout << sheet_counter << '\n';
 }
