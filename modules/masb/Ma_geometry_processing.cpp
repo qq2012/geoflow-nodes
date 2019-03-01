@@ -8,12 +8,14 @@ namespace masb {
     maGeom_result Geom4pt(Vector &p_norm, Vector &q_norm) {
         maGeom_result re;
         //build in cross product function ????????????????????
+        /*
         Scalar x = p_norm[1] * q_norm[2] - q_norm[1] * p_norm[2];
         Scalar y = -(p_norm[0] * q_norm[2] - q_norm[0] * p_norm[2]);
         Scalar z = p_norm[0] * q_norm[1] - q_norm[0] * p_norm[1];
         re.bisector = { x,y,z };
+        */
+        re.bisector = Vrui::Geometry::cross(p_norm, q_norm);
         re.bisector.normalize();//??????2 orientation???
-
         float cos_SepAng = p_norm * q_norm / p_norm.abs() / q_norm.abs();
         re.SepAng = acos(cos_SepAng);//????value range???
         return re;

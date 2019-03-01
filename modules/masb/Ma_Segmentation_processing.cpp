@@ -7,13 +7,26 @@ using namespace std;
 
 //static const double PI = 3.14159265358979323846264338327950288;
 
-void MaSeg_power::update() {
-    this->bisec_thres = cos(this->bisecavg_thres / 180.0)*PI;
-    this->bisecavg_thres = cos(this->bisecavg_thres / 180.0)*PI;
-    this->bisecdiff_thres = cos(this->bisecdiff_thres / 180.0)*PI;
+MaSeg_power::MaSeg_power() {
+    this->bisec_thres = cos((this->bisecavg_thres / 180.0)*PI);
+    this->bisecavg_thres = cos((this->bisecavg_thres / 180.0)*PI);
+    this->bisecdiff_thres = cos((this->bisecdiff_thres / 180.0)*PI);
     this->theta_thres = this->theta_thres / 180.0 *PI;
-    this->spokecross_thres = cos(this->spokecross_thres / 180.0)*PI;
+    this->spokecross_thres = cos((this->spokecross_thres / 180.0)*PI);
+    /*
+    self.p_bisecthres = math.cos((self.p['bisec_thres'] / 180.0) * math.pi)
+    self.p_bisecavgthres = math.cos((self.p['bisecavg_thres'] / 180.0) * math.pi)
+    self.p_bisecdiffthres = math.cos((self.p['bisecdiff_thres'] / 180.0) * math.pi)
+    self.p_normalthres = math.cos((5.0 / 180.0) * math.pi)
+    self.p_thetathres_1 = (self.p['theta_thres'] / 180.0) * math.pi # during bisect growing
+    self.p_thetathres_2 = (self.p['theta_thres'] / 180.0) * math.pi # during theta growing
+    self.p_k = self.p['k']
+    self.p_balloverlap_thres = self.p['balloverlap_thres']
+    self.p_mincount = self.p['mincount']
+    self.p_spokecross_thres = math.cos((self.p['spokecross_thres'] / 180.0) * math.pi)
+   */
 }
+
 inline bool MaSegProcess::if_all_segmented() {
     this->point_segment_idx;
     if (std::find(point_segment_idx.begin(), point_segment_idx.end(), -1) != point_segment_idx.end())
@@ -21,33 +34,36 @@ inline bool MaSegProcess::if_all_segmented() {
     else
         return true;/* point_segment_idx -- does not contain -1 */
 }
-inline size_t MaSegProcess::findseed8r(floatList *ma_radius) {
+
+inline size_t MaSegProcess::findseed8r(float seed_radius_thres,floatList *ma_radius) {
     for (size_t i = 1; i < this->size; ++i) {
-        if (point_segment_idx[i] != -1 && (*ma_radius)[i] < power.seed_radius_thres)
+        if (point_segment_idx[i] != -1 && (*ma_radius)[i] < seed_radius_thres)
             return i;
     }
 }
+
 inline size_t MaSegProcess::findseed() {
     for (size_t i = 1; i < this->size; ++i) {
         if (point_segment_idx[i] != -1)
             return i;
     }
 }
-inline bool MaSegProcess::valid_candidate_bisec(size_t idx1, size_t idx2, ma_Geometry &maGeometry) {
+
+inline bool MaSegProcess::valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry) {
     Vector bisec1 = (*maGeometry.ma_bisector)[idx1];
     Vector bisec2 = (*maGeometry.ma_bisector)[idx2];
-    return bisec1 * bisec2 < power.bisec_thres;
+    return bisec1 * bisec2 < bisec_thres;
 }
 
-bool MaSegProcess::validateCandidate(size_t idx1, size_t idx2, 
+bool MaSegProcess::validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2,
     ma_data &madata, ma_Geometry &maGeometry) {
     if (power.method == "bisec")
-        return valid_candidate_bisec(idx1,idx2, maGeometry);
+        return valid_candidate_bisec(power.bisec_thres,idx1,idx2, maGeometry);
     else
         std::cout << "not having this segmentation method yet, plz check.\n";
 }
 
-void MaSegProcess::grow_sheet(size_t initial_seed_idx, ma_data &madata, ma_Geometry &maGeometry) {
+void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx, ma_data &madata, ma_Geometry &maGeometry) {
     stack<size_t>seeds;
     seeds.push(initial_seed_idx);
     vector<size_t> idx_in_sheet;
@@ -59,7 +75,7 @@ void MaSegProcess::grow_sheet(size_t initial_seed_idx, ma_data &madata, ma_Geome
         madata.kdtree_ma_coords->n_nearest(seed_pt, power.k_neib, neighbours);
         for (auto &candidate : neighbours) {
             if (point_segment_idx[candidate.idx] != -1 && 
-                validateCandidate(seed_idx, candidate.idx, madata, maGeometry)) {
+                validateCandidate(power,seed_idx, candidate.idx, madata, maGeometry)) {
                 idx_in_sheet.push_back(candidate.idx);
                 seeds.push(candidate.idx);
                 point_segment_idx[candidate.idx] = sheet_counter;
@@ -74,8 +90,7 @@ void MaSegProcess::grow_sheet(size_t initial_seed_idx, ma_data &madata, ma_Geome
     }
 }
 
-void MaSegProcess::processing(ma_data &madata, intList &remainingma_in_out,ma_Geometry &maGeometry) {
-    this->power.update();
+void MaSegProcess::processing(MaSeg_power &power,ma_data &madata, intList &remainingma_in_out,ma_Geometry &maGeometry) {
     this->size = madata.m * 2;
     point_segment_idx.resize(size, -1);
     
@@ -84,12 +99,11 @@ void MaSegProcess::processing(ma_data &madata, intList &remainingma_in_out,ma_Ge
     madata.kdtree_ma_coords->sort_results = true;
     size_t initial_seed_idx = 0;
     while (initial_seed_idx) {
-        grow_sheet(initial_seed_idx,madata, maGeometry);
+        grow_sheet(power,initial_seed_idx,madata, maGeometry);
         sheet_counter++;
         if (!if_all_segmented())
             initial_seed_idx = findseed();
         else
             initial_seed_idx = NULL;
     }
-    std::cout << sheet_counter << '\n';
 }

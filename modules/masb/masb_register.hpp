@@ -9,6 +9,9 @@ namespace geoflow::nodes::mat {
     R.register_node<MaGeometryNode>("MaGeometryNode");
     R.register_node<FilterRNode>("FilterRNode");
     R.register_node<MedialSegmentNode>("MedialSegmentNode");
+    R.register_node<MaPt_in_oneTraceNode>("MaPt_in_oneTraceNode");
+    R.register_node<ExtractCandidatePtNode>("ExtractCandidatePtNode");
+    R.register_node<ConnectCandidatePtNode>("ConnectCandidatePtNode");
     return R;
   }
 

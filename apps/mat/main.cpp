@@ -21,5 +21,14 @@ int main(int ac, const char * av[])
     NodeRegister mat = gfn::mat::create_register();
     NodeRegister las = gfn::las::create_register();
 
+    auto las_loader_node = N.create_node(las, "LASLoader", { -300,0 });
+    auto mat_node = N.create_node(mat, "ComputeMedialAxisNode", { 0,0 });
+    auto normals_node = N.create_node(mat, "ComputeNormalsNode", { -100,0 });
+
+    las_loader_node->set_param("filepath", "/some/path");
+
+    connect(normals_node->output("normals"), mat_node->input("normals"));
+
+
     launch_flowchart(N, {cgal, las, mat});
 }

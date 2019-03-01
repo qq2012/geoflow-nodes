@@ -3,6 +3,8 @@ add_library(masb_nodes STATIC
   Ma_geometry_processing.cpp
   Ma_utility.cpp
   Ma_Segmentation_processing.cpp
+  ExtractCandidatePt.cpp
+  MaPt_in_oneTrace.cpp
 )
 target_link_libraries( masb_nodes
   geoflow-core

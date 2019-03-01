@@ -8,6 +8,9 @@ void ComputeMedialAxisNode::process(){
   auto point_collection = input("points").get<PointCollection>();
   auto normals_vec3f = input("normals").get<vec3f>();
 
+  masb::ma_parameters params;
+  params.initial_radius = param<float>("initial_radius");
+
   masb::ma_data madata;
   madata.m = point_collection.size();
   
@@ -55,6 +58,7 @@ void ComputeMedialAxisNode::process(){
   vec1i ma_is_interior(madata.m*2, 0);
   std::fill_n(ma_is_interior.begin(), madata.m, 1);
 
+  output("coords_masb").set(coords);
   output("ma_coords").set(ma_coords);
   output("ma_qidx").set(ma_qidx);
   output("ma_radius").set(ma_radius);
@@ -143,7 +147,7 @@ void FilterRNode::process() {
     auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
     vec1i remaining_idx;
     for (size_t i = 0; i< ma_radius_vec1f.size()-1; ++i) {
-        if (ma_radius_vec1f[i] < params.radius)
+        if (ma_radius_vec1f[i] < this->radius)
             remaining_idx.push_back(i);
     }
     std::cout << remaining_idx.data() << '\n';
@@ -153,6 +157,8 @@ void FilterRNode::process() {
 void MedialSegmentNode::process() {
     auto remaining_idx_vec1i = input("remaining_idx").get<vec1i>();
     auto ma_coords_collection = input("ma_coords").get<PointCollection>();
+    auto ma_qidx_vec1i = input("ma_qidx").get<vec1i>();
+    auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
     auto ma_SeparationAng_vec1f = input("ma_SeparationAng").get<vec1f>();
     auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
     //better way???
@@ -168,7 +174,19 @@ void MedialSegmentNode::process() {
     for (auto& p : ma_coords_collection) {
         ma_coords.push_back(masb::Point());
     }
+    masb::floatList ma_radius;
+    ma_radius.reserve(madata.m * 2);
+    for (auto& r : ma_radius_vec1f) {
+        ma_radius.push_back(r);
+    }
+    masb::intList ma_qidx;
+    ma_qidx.reserve(madata.m * 2);
+    for (int & i : ma_qidx_vec1i) {
+        ma_qidx.push_back(i);
+    }
     madata.ma_coords = &ma_coords;
+    madata.ma_radius = &ma_radius;
+    madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????
     
     masb::ma_Geometry maGeometry, remainingGeometry;
     masb::floatList ma_SeparationAng;
@@ -183,22 +201,15 @@ void MedialSegmentNode::process() {
     }
     maGeometry.ma_SeperationAng = &ma_SeparationAng;
     maGeometry.ma_bisector = &ma_bisector;
-    /*
-    vec1i ma_is_interior(madata.m * 2, 0);
-    std::fill_n(ma_is_interior.begin(), madata.m, 1);
-    */
+
     masb::intList remainingma_in_out;
     masb::idx_filter filter;
     filter.processing(madata, maGeometry, remaining_idx, 
         remainingData, remainingma_in_out, remainingGeometry);
-    for (size_t i = 0; i < remaining_idx.size() - 1; ++i) {
-        auto v = (*remainingGeometry.ma_bisector)[i];
-        std::cout << v[0]<<" "<<v[1]<<" "<<v[2] << "\n";
-        std::cout << (*remainingGeometry.ma_SeperationAng)[i] << "\n";
-    }
+
 
     masb::MaSegProcess segmentation;
-    segmentation.processing(remainingData, remainingma_in_out, remainingGeometry);
+    segmentation.processing(params,remainingData, remainingma_in_out, remainingGeometry);
 
     vec1i seg_id_;
     for (auto & idx : segmentation.point_segment_idx)
@@ -206,4 +217,37 @@ void MedialSegmentNode::process() {
 
     output("seg_id").set(seg_id_);
 }
+
+void MaPt_in_oneTraceNode::process() {
+    auto ma_coords_collection = input("ma_coords").get<PointCollection>();
+    auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
+    auto seg_id_vec1i = input("seg_id").get<vec1i>();
+
+    masb::size_t size = ma_coords_collection.size();
+    masb::PointList ma_coords;
+    ma_coords.reserve(size);
+    for (auto& p : ma_coords_collection) {
+        ma_coords.push_back(masb::Point());
+    }
+    masb::VectorList ma_bisector;
+    ma_coords.reserve(size);
+    for (auto& n : ma_bisector_vec3f) {
+        ma_bisector.push_back(masb::Vector(n.data()));
+    }
+    masb::intList seg_id;
+    for (int& i : seg_id_vec1i) {
+        seg_id.push_back(i);
+    }
+    
+
 }
+
+void ExtractCandidatePtNode::process() {
+
+
+}
+void ConnectCandidatePtNode::process() {
+
+}
+}
+
