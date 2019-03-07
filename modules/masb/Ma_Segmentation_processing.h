@@ -30,8 +30,8 @@ namespace masb{
   class MaSegProcess{
   public:
       //MaSeg_result
-      vector<size_t> point_segment_idx; // 0=unsegmented, maybe put this on the heap...
-      void processing(MaSeg_power &power, ma_data &madata, intList &remainingma_in_out, ma_Geometry &maGeometry);
+      vector<long long int> point_segment_idx; // 0=unsegmented, maybe put this on the heap...
+      void processing(MaSeg_power &power, mat_data &madata, intList &remainingma_in_out, ma_Geometry &maGeometry);
 
   private:
       size_t sheet_counter = 1;
@@ -40,8 +40,8 @@ namespace masb{
       inline size_t findseed();
       inline bool if_all_segmented();
       inline bool valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry);
-      bool validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2, ma_data &madata, ma_Geometry &maGeometry);
-      void grow_sheet(MaSeg_power &power,size_t initial_seed_idx, ma_data &madata, ma_Geometry &maGeometry);
+      bool validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2, mat_data &madata, ma_Geometry &maGeometry);
+      void grow_sheet(MaSeg_power &power,size_t initial_seed_idx, mat_data &madata, ma_Geometry &maGeometry);
  };
 }
 

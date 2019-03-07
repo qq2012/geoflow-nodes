@@ -4,17 +4,6 @@
 #include "madata.h"
 namespace masb {
 
-    struct mat_data {
-        PointList coords; // don't own this memory
-        VectorList normals; // don't own this memory
-        PointList ma_coords; // don't own this memory
-        floatList ma_radius; // don't own this memory
-        intList ma_qidx;
-
-        kdtree2::KDTree* kdtree_coords = NULL;
-        kdtree2::KDTree* kdtree_ma_coords = NULL;
-    };
-
     class idx_filter {
     public:
         void processing(ma_data &madata, ma_Geometry &maGeometry,intList &remaining_idx, 

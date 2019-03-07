@@ -8,8 +8,8 @@ void ComputeMedialAxisNode::process(){
   auto point_collection = input("points").get<PointCollection>();
   auto normals_vec3f = input("normals").get<vec3f>();
 
-  masb::ma_parameters params;
-  params.initial_radius = param<float>("initial_radius");
+  //masb::ma_parameters params;
+  //params.initial_radius = param<float>("initial_radius");
 
   masb::ma_data madata;
   madata.m = point_collection.size();
@@ -123,19 +123,19 @@ void MaGeometryNode::process() {
     std::vector<float> ma_SeparationAng_(madata.m * 2);
     masb::VectorList ma_bisector_(madata.m * 2);
     masb::ma_Geometry maGeometry;
-    maGeometry.ma_SeperationAng = &ma_SeparationAng_;
-    maGeometry.ma_bisector = &ma_bisector_;
+    maGeometry.ma_SeperationAng = ma_SeparationAng_;
+    maGeometry.ma_bisector = ma_bisector_;
 
     masb::compute_ma_geometry(madata, maGeometry);
 
     vec1f ma_SeparationAng;
     ma_SeparationAng.reserve(madata.m * 2);
-    for (auto& c : *maGeometry.ma_SeperationAng) {
+    for (auto& c : maGeometry.ma_SeperationAng) {
         ma_SeparationAng.push_back(c);
     }
     vec3f ma_bisector;
     ma_bisector.reserve(madata.m * 2);
-    for (auto& n : *maGeometry.ma_bisector) {
+    for (auto& n : maGeometry.ma_bisector) {
         ma_bisector.push_back({ n[0], n[1], n[2] });
     }
 
@@ -167,7 +167,8 @@ void MedialSegmentNode::process() {
         remaining_idx.push_back(int(i));
     }
 
-    masb::ma_data madata, remainingData;
+    masb::ma_data madata;
+    masb::mat_data remainingData;
     madata.m = ma_coords_collection.size() / 2;
     masb::PointList ma_coords;
     ma_coords.reserve(madata.m*2);
@@ -199,8 +200,8 @@ void MedialSegmentNode::process() {
     for (auto& v : ma_bisector_vec3f) {
         ma_bisector.push_back(masb::Vector(v.data()));
     }
-    maGeometry.ma_SeperationAng = &ma_SeparationAng;
-    maGeometry.ma_bisector = &ma_bisector;
+    maGeometry.ma_SeperationAng = ma_SeparationAng;
+    maGeometry.ma_bisector = ma_bisector;
 
     masb::intList remainingma_in_out;
     masb::idx_filter filter;

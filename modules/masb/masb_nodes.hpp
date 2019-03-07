@@ -13,6 +13,7 @@ namespace geoflow::nodes::mat {
 
   class ComputeMedialAxisNode:public Node {
     public:
+    masb::ma_parameters params;
     float interval = 2;
     double zero=0,pi=3.14;
     using Node::Node;
@@ -28,11 +29,11 @@ namespace geoflow::nodes::mat {
 
     }
     void gui(){
-      //ImGui::SliderFloat("initial_radius", &params.initial_radius, 0, 1000);
-      ImGui::SliderFloat("initial_radius", &param<float>("initial_radius"), 0, 1000);
-      //ImGui::SliderScalar("denoise_preserve", ImGuiDataType_Double, &params.denoise_preserve, &zero, &pi);
-      //ImGui::SliderScalar("denoise_planar", ImGuiDataType_Double, &params.denoise_planar, &zero, &pi);
-      //ImGui::Checkbox("nan_for_initr", &params.nan_for_initr);
+      ImGui::SliderFloat("initial_radius", &params.initial_radius, 0, 1000);
+      //ImGui::SliderFloat("initial_radius", &param<float>("initial_radius"), 0, 1000);
+      ImGui::SliderScalar("denoise_preserve", ImGuiDataType_Double, &params.denoise_preserve, &zero, &pi);
+      ImGui::SliderScalar("denoise_planar", ImGuiDataType_Double, &params.denoise_planar, &zero, &pi);
+      ImGui::Checkbox("nan_for_initr", &params.nan_for_initr);
     }
     void process();
   };

@@ -50,27 +50,27 @@ inline size_t MaSegProcess::findseed() {
 }
 
 inline bool MaSegProcess::valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry) {
-    Vector bisec1 = (*maGeometry.ma_bisector)[idx1];
-    Vector bisec2 = (*maGeometry.ma_bisector)[idx2];
+    Vector bisec1 = maGeometry.ma_bisector[idx1];
+    Vector bisec2 = maGeometry.ma_bisector[idx2];
     return bisec1 * bisec2 < bisec_thres;
 }
 
 bool MaSegProcess::validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2,
-    ma_data &madata, ma_Geometry &maGeometry) {
+    mat_data &madata, ma_Geometry &maGeometry) {
     if (power.method == "bisec")
         return valid_candidate_bisec(power.bisec_thres,idx1,idx2, maGeometry);
     else
         std::cout << "not having this segmentation method yet, plz check.\n";
 }
 
-void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx, ma_data &madata, ma_Geometry &maGeometry) {
+void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx, mat_data &madata, ma_Geometry &maGeometry) {
     stack<size_t>seeds;
     seeds.push(initial_seed_idx);
     vector<size_t> idx_in_sheet;
     while (!seeds.empty()) {
         size_t seed_idx = seeds.top();// .first;???????
         seeds.pop();
-        Point seed_pt = (*madata.ma_coords)[seed_idx];
+        Point seed_pt = madata.ma_coords[seed_idx];
         kdtree2::KDTreeResultVector neighbours;
         madata.kdtree_ma_coords->n_nearest(seed_pt, power.k_neib, neighbours);
         for (auto &candidate : neighbours) {
@@ -90,12 +90,13 @@ void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx, ma_dat
     }
 }
 
-void MaSegProcess::processing(MaSeg_power &power,ma_data &madata, intList &remainingma_in_out,ma_Geometry &maGeometry) {
-    this->size = madata.m * 2;
+void MaSegProcess::processing(MaSeg_power &power,mat_data &madata, 
+    intList &remainingma_in_out,ma_Geometry &maGeometry) {
+    this->size = madata.ma_ptsize;
     point_segment_idx.resize(size, -1);
     
     if (madata.kdtree_ma_coords == NULL)
-        madata.kdtree_ma_coords = new kdtree2::KDTree((*madata.ma_coords), true);
+        madata.kdtree_ma_coords = new kdtree2::KDTree(madata.ma_coords, true);
     madata.kdtree_ma_coords->sort_results = true;
     size_t initial_seed_idx = 0;
     while (initial_seed_idx) {
