@@ -32,7 +32,8 @@ int main(int ac, const char * av[])
     //auto ConnectCandidatePt_node = N.create_node(mat, "ConnectCandidatePtNode");
 
 
-    las_loader_node->set_param("filepath", "C:/Users/wangq/Downloads/thesis/P3/urban_2.las");//"/some/path"
+    //las_loader_node->set_param("filepath", "C:/Users/wangq/Downloads/thesis/P3/urban_2.las");//"/some/path"
+    las_loader_node->set_param("filepath", "C:\\Users\\wangq\\Downloads\\thesis\\P3\\urban_2.las");
     connect(las_loader_node->output("points"), normals_node->input("points"));
     connect(normals_node->output("normals"), mat_node->input("normals"));
     connect(las_loader_node->output("points"), mat_node->input("points"));

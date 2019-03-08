@@ -1,6 +1,7 @@
 #include "masb_nodes.hpp"
 #include <iostream>
 #include <algorithm>
+#include <string>
 
 namespace geoflow::nodes::mat {
 
@@ -8,8 +9,11 @@ void ComputeMedialAxisNode::process(){
   auto point_collection = input("points").get<PointCollection>();
   auto normals_vec3f = input("normals").get<vec3f>();
 
-  //masb::ma_parameters params;
-  //params.initial_radius = param<float>("initial_radius");
+  masb::ma_parameters params;
+  params.initial_radius = param<float>("initial_radius");
+  params.denoise_preserve = param<double>("denoise_preserve");
+  params.denoise_planar = param<double>("denoise_planar");
+  params.nan_for_initr = param<bool>("nan_for_initr");
 
   masb::ma_data madata;
   madata.m = point_collection.size();
@@ -68,6 +72,9 @@ void ComputeMedialAxisNode::process(){
 
 void ComputeNormalsNode::process(){
   auto point_collection = input("points").get<PointCollection>();
+
+  masb::normals_parameters params;
+  params.k = param<int>("K");
 
   masb::ma_data madata;
   madata.m = point_collection.size();
@@ -145,9 +152,12 @@ void MaGeometryNode::process() {
 
 void FilterRNode::process() {
     auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
+
+    float radius = param<float>("filterRadius");
+
     vec1i remaining_idx;
     for (size_t i = 0; i< ma_radius_vec1f.size()-1; ++i) {
-        if (ma_radius_vec1f[i] < this->radius)
+        if (ma_radius_vec1f[i] < radius)
             remaining_idx.push_back(i);
     }
     std::cout << remaining_idx.data() << '\n';
@@ -161,6 +171,26 @@ void MedialSegmentNode::process() {
     auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
     auto ma_SeparationAng_vec1f = input("ma_SeparationAng").get<vec1f>();
     auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
+
+    masb::MaSeg_power params;
+    params.mincount = param<int>("mincount");
+    params.maxcount = param<int>("maxcount");
+    //params.method = this->current_method;//why bug??????????????????????????????????????????????????
+    //std::cout << params.method << "\n";
+    /*
+    enum { bisector, radius, thirdopt } METHOD;
+    METHOD = bisector;//????????????????????????????????????????
+    //params.method = item_current;
+    switch (METHOD) {
+    case bisector:
+        params.bisec_thres = param<float>("bisec_thres"); break;
+    case radius:
+        params.balloverlap_thres = param<float>("balloverlap_thres"); break;
+    case thirdopt:
+        std::cout << "not ready\n"; break;
+    }
+    */
+
     //better way???
     masb::intList remaining_idx;
     for (auto& i : remaining_idx_vec1i) {
