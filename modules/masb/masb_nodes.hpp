@@ -95,10 +95,8 @@ namespace geoflow::nodes::mat {
   };
   class MedialSegmentNode :public Node {
   private:
-      const char *current_method;
+      masb::METHOD current_method;
   public:
-      //masb::MaSeg_power params;
-      
       using Node::Node;
       void init() {
           add_param("mincount", (int)10);
@@ -113,8 +111,11 @@ namespace geoflow::nodes::mat {
           add_input("ma_radius", TT_vec1f);
           add_input("ma_SeparationAng", TT_vec1f);
           add_input("ma_bisector", TT_vec3f);
+
           add_output("seg_id", TT_vec1i);//todo type
           //TT_segment_collection_list, or  TT_attribute_map_f
+          add_output("madata",TT_any);
+          add_output("segmentation",TT_any);
       }
       void gui() {
           ImGui::SliderInt("mincount", &param<int>("mincount"), 10, 100);
@@ -130,7 +131,13 @@ namespace geoflow::nodes::mat {
                   if (ImGui::Selectable(items[n], is_selected))
                       item_current = items[n];
                   if (is_selected)
-                      ImGui::SetItemDefaultFocus();   
+                      ImGui::SetItemDefaultFocus();
+                  if (item_current == items[0])
+                      current_method = masb::bisector;
+                  else if (item_current == items[1])
+                      current_method = masb::radius;
+                  else if (item_current == items[2])
+                      current_method = masb::thirdopt;
                   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
               }
               ImGui::EndCombo();
@@ -147,8 +154,6 @@ namespace geoflow::nodes::mat {
           else if (item_current == items[2]) {
               ImGui::Text("it is time for third opt");
           }
-          current_method = item_current;
-          //std::cout << current_method << "\n";
       }
       void process();
   };

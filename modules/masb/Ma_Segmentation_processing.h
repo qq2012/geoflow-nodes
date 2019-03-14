@@ -6,7 +6,7 @@
 
 
 namespace masb{
-     
+  enum METHOD { bisector, radius, thirdopt };
   using namespace std;
   class MaSeg_power{
   public:
@@ -16,28 +16,31 @@ namespace masb{
     float theta_thres = 10.0;
     float secspokecnt_thres = 10;
     float balloverlap_thres = 10;
-    int k_neib = 10;
+    int k_neib = 15;
     bool only_interior = true;
-    std::string method = "bisec";
+    METHOD method = bisector;
     int mincount = 10;
     int maxcount = 1000;
     float spokecross_thres = 5.0;
     float seed_radius_thres = 2.0;
     // mask = None
-    MaSeg_power();
+    void update();
   };
 
   class MaSegProcess{
+      typedef vector<size_t> sheet;
   public:
       //MaSeg_result
       vector<long long int> point_segment_idx; // 0=unsegmented, maybe put this on the heap...
-      void processing(MaSeg_power &power, mat_data &madata, intList &remainingma_in_out, ma_Geometry &maGeometry);
+      vector<sheet> shape;
+      vector<int> shape_inout;
+      void processing(MaSeg_power &power, mat_data &madata, ma_Geometry &maGeometry);
 
   private:
       size_t sheet_counter = 1;
       size_t size;
       inline size_t findseed8r(float seed_radius_thres,floatList *ma_radius);
-      inline size_t findseed();
+      inline size_t findseed(size_t initial_seed_idx);
       inline bool if_all_segmented();
       inline bool valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry);
       bool validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2, mat_data &madata, ma_Geometry &maGeometry);

@@ -37,7 +37,7 @@ namespace masb {
                 maGeometry.ma_SeperationAng[i] = res.SepAng;
             }
             else {
-                std::cout << "There is a all not shriking\n";
+                //std::cout << "There is a all not shriking\n";
             }
         } 
     }

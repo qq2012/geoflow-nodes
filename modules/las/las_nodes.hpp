@@ -4,7 +4,6 @@ namespace geoflow::nodes::las {
 
   class LASLoaderNode:public Node {
     public:
-    char filepath[256] = "";
     int thin_nth = 20;
     bool use_thin = true;
     
@@ -13,9 +12,11 @@ namespace geoflow::nodes::las {
       add_output("points", TT_point_collection);
       add_output("classification", TT_vec1i);
       add_output("intensity", TT_vec1f);
+
+      add_param("filepath", (std::string) "");
     }
     void gui(){
-      ImGui::InputText("File path", filepath, IM_ARRAYSIZE(filepath));
+      ImGui::InputText("File path", &param<std::string>("filepath"));
       ImGui::SliderInt("Thin nth", &thin_nth, 1, 100);
     }
     void process();

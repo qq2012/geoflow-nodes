@@ -11,7 +11,7 @@ void LASLoaderNode::process(){
   vec1f intensity;
 
   LASreadOpener lasreadopener;
-  lasreadopener.set_file_name(filepath);
+  lasreadopener.set_file_name(param<std::string>("filepath").c_str());
   LASreader* lasreader = lasreadopener.open();
   if (!lasreader)
     return;

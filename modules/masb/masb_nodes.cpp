@@ -175,23 +175,20 @@ void MedialSegmentNode::process() {
     masb::MaSeg_power params;
     params.mincount = param<int>("mincount");
     params.maxcount = param<int>("maxcount");
-    //params.method = this->current_method;//why bug??????????????????????????????????????????????????
-    //std::cout << params.method << "\n";
-    /*
-    enum { bisector, radius, thirdopt } METHOD;
-    METHOD = bisector;//????????????????????????????????????????
-    //params.method = item_current;
-    switch (METHOD) {
-    case bisector:
-        params.bisec_thres = param<float>("bisec_thres"); break;
-    case radius:
+    params.method = this->current_method;
+
+    switch (this->current_method) {
+    case masb::bisector:
+        params.bisec_thres = param<float>("bisec_thres");
+        std::cout << "method -- bisector\n"; 
+        break;
+    case masb::radius:
         params.balloverlap_thres = param<float>("balloverlap_thres"); break;
-    case thirdopt:
+    case masb::thirdopt:
         std::cout << "not ready\n"; break;
     }
-    */
 
-    //better way???
+    
     masb::intList remaining_idx;
     for (auto& i : remaining_idx_vec1i) {
         remaining_idx.push_back(int(i));
@@ -203,7 +200,7 @@ void MedialSegmentNode::process() {
     masb::PointList ma_coords;
     ma_coords.reserve(madata.m*2);
     for (auto& p : ma_coords_collection) {
-        ma_coords.push_back(masb::Point());
+        ma_coords.push_back(masb::Point(p.data()));
     }
     masb::floatList ma_radius;
     ma_radius.reserve(madata.m * 2);
@@ -233,20 +230,30 @@ void MedialSegmentNode::process() {
     maGeometry.ma_SeperationAng = ma_SeparationAng;
     maGeometry.ma_bisector = ma_bisector;
 
-    masb::intList remainingma_in_out;
+    //masb::intList remainingma_in_out;
     masb::idx_filter filter;
     filter.processing(madata, maGeometry, remaining_idx, 
-        remainingData, remainingma_in_out, remainingGeometry);
+        remainingData, remainingGeometry);
 
+    masb::mat_data madata_in, madata_out;
+    masb::ma_Geometry maGeometry_in, maGeometry_out;
+    masb::splitInOut splier;
+    splier.processing(remainingData, remainingGeometry, true, madata_in, maGeometry_in);
+    splier.processing(remainingData, remainingGeometry, false, madata_out, maGeometry_out);
 
     masb::MaSegProcess segmentation;
-    segmentation.processing(params,remainingData, remainingma_in_out, remainingGeometry);
+    segmentation.processing(params, madata_in, maGeometry_in);
+    auto seg_all_ = segmentation.point_segment_idx;
+    segmentation.processing(params, madata_out, maGeometry_out);
+    seg_all_.insert(seg_all_.end(), segmentation.point_segment_idx.begin(), segmentation.point_segment_idx.end());
 
-    vec1i seg_id_;
-    for (auto & idx : segmentation.point_segment_idx)
-        seg_id_.push_back(idx);
+    vec1i seg_idx_;
+    for (auto & idx : seg_all_)
+        seg_idx_.push_back(idx);
 
-    output("seg_id").set(seg_id_);
+    output("seg_id").set(seg_idx_);
+    output("madata").set(remainingData);
+    output("segmentation").set(segmentation);
 }
 
 void MaPt_in_oneTraceNode::process() {
