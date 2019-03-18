@@ -70,12 +70,13 @@ bool MaSegProcess::validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2
 void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx,
     mat_data &madata, ma_Geometry &maGeometry) {
     stack<size_t> seeds;
-    sheet idx_in_sheet;
+    size_tList idx_in_sheet;
     int in_out_flag = madata.in_out[initial_seed_idx];
+    /*
     std::cout << "initial_seed_idx--" << initial_seed_idx << "\n";
     std::cout << "bisector-thresh--" << power.bisec_thres << "\n";
     std::cout << "in_out_flag -- " << in_out_flag << "\n";
-
+    */
     seeds.push(initial_seed_idx);
     idx_in_sheet.push_back(initial_seed_idx);
     point_segment_idx[initial_seed_idx] = sheet_counter;
@@ -96,7 +97,7 @@ void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx,
                 madata.in_out[candidate.idx] == in_out_flag &&
                 validateCandidate(power,seed_idx, candidate.idx, madata, maGeometry)
                 ) {
-                std::cout << "candidate validate, push-- " << candidate.idx << " into seeds,sheet,segment\n";
+                //std::cout << "candidate validate, push-- " << candidate.idx << " into seeds,sheet,segment\n";
                 seeds.push(candidate.idx);
                 idx_in_sheet.push_back(candidate.idx);
                 point_segment_idx[candidate.idx] = sheet_counter;
@@ -127,10 +128,10 @@ void MaSegProcess::processing(MaSeg_power &power,mat_data &madata,ma_Geometry &m
     size_t initial_seed_idx = 0;
     while (1) {
         grow_sheet(power,initial_seed_idx,madata, maGeometry);
-        if (if_all_segmented(       ))
+        if (if_all_segmented())
             break;
         else
-            initial_seed_idx = findseed(       initial_seed_idx);
+            initial_seed_idx = findseed(initial_seed_idx);
     }
     std::cout << "segmentation finished\n";
 }

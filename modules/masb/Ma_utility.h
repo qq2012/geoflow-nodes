@@ -2,12 +2,14 @@
 #define MA_UTILITY_
 
 #include "madata.h"
-//#include <variant>
+#include <variant>
 namespace masb {
 
     class idx_filter {
     public:
         void processing(ma_data &madata, ma_Geometry &maGeometry,intList &remaining_idx, 
+            mat_data &remainingData, ma_Geometry &remainingGeometry);
+        void processing(mat_data &madata, ma_Geometry &maGeometry, size_tList &remaining_idx,
             mat_data &remainingData, ma_Geometry &remainingGeometry);
         void processing(ma_data &madata, intList &remaining_idx,mat_data &remainingData);
     };

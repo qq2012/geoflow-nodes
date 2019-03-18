@@ -101,6 +101,7 @@ void ComputeNormalsNode::process(){
 void MaGeometryNode::process() {
     auto point_collection = input("points").get<PointCollection>();
     auto normals_vec3f = input("normals").get<vec3f>();
+    auto ma_coords_collection = input("ma_coords").get<PointCollection>();
     auto ma_qidx_vec1i = input("ma_qidx").get<vec1i>();
 
     masb::ma_data madata;
@@ -116,6 +117,11 @@ void MaGeometryNode::process() {
     for (auto& n : normals_vec3f) {
         normals.push_back(masb::Vector(n.data()));
     }    
+    masb::PointList ma_coords;
+    ma_coords.reserve(madata.m * 2);
+    for (auto& p : ma_coords_collection) {
+        ma_coords.push_back(masb::Point(p.data()));
+    }
     masb::intList ma_qidx;
     ma_qidx.reserve(madata.m * 2);
     for (size_t i = 0; i < madata.m * 2; ++i) {
@@ -125,6 +131,7 @@ void MaGeometryNode::process() {
     std::fill_n(ma_is_interior.begin(), madata.m, 1);
     madata.coords = &coords;
     madata.normals = &normals;
+    madata.ma_coords = &ma_coords;
     madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????????????????
 
     std::vector<float> ma_SeparationAng_(madata.m * 2);
@@ -243,40 +250,51 @@ void MedialSegmentNode::process() {
 
     masb::MaSegProcess segmentation;
     segmentation.processing(params, madata_in, maGeometry_in);
+    auto seg_in_ = segmentation.point_segment_idx;
     auto seg_all_ = segmentation.point_segment_idx;
+    auto sheet_in_ = segmentation.shape;
+    auto sheet_all_ = segmentation.shape;
+
     segmentation.processing(params, madata_out, maGeometry_out);
+    auto seg_out_ = segmentation.point_segment_idx;
+    auto sheet_out_ = segmentation.shape;
+
     seg_all_.insert(seg_all_.end(), segmentation.point_segment_idx.begin(), segmentation.point_segment_idx.end());
+    sheet_all_.insert(sheet_all_.end(), segmentation.shape.begin(), segmentation.shape.end());
 
     vec1i seg_idx_;
     for (auto & idx : seg_all_)
         seg_idx_.push_back(idx);
 
+    PointCollection ma_coords_;
+    ma_coords_.reserve(remainingData.ma_ptsize);
+    for (auto& c : remainingData.ma_coords) {
+        ma_coords_.push_back({ c[0], c[1], c[2] });
+    }
+
     output("seg_id").set(seg_idx_);
-    output("madata").set(remainingData);
-    output("segmentation").set(segmentation);
+    output("sheet_all").set(sheet_all_);
+    output("ma_coords").set(ma_coords_);
+    output("madata_in").set(madata_in);
+    output("madata_out").set(madata_out);
+    output("maGeometry_in").set(maGeometry_in);
+    output("maGeometry_out").set(maGeometry_out);
+    output("seg_in").set(seg_in_);
+    output("seg_out").set(seg_out_);
+    output("sheet_in").set(sheet_in_);
+    output("sheet_out").set(sheet_out_);
+
 }
 
 void MaPt_in_oneTraceNode::process() {
-    auto ma_coords_collection = input("ma_coords").get<PointCollection>();
-    auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
-    auto seg_id_vec1i = input("seg_id").get<vec1i>();
+    auto madata = input("ma_coords").get<masb::mat_data>();
+    auto maGeometry = input("maGeometry").get<masb::ma_Geometry>();
+    auto sheets = input("sheets").get<masb::Sheet_idx_List>();
 
-    masb::size_t size = ma_coords_collection.size();
-    masb::PointList ma_coords;
-    ma_coords.reserve(size);
-    for (auto& p : ma_coords_collection) {
-        ma_coords.push_back(masb::Point());
-    }
-    masb::VectorList ma_bisector;
-    ma_coords.reserve(size);
-    for (auto& n : ma_bisector_vec3f) {
-        ma_bisector.push_back(masb::Vector(n.data()));
-    }
-    masb::intList seg_id;
-    for (int& i : seg_id_vec1i) {
-        seg_id.push_back(i);
-    }
-    
+    masb::pt_Trace_pram  params;
+    params.SearchRadius = param<float>("SearchRadius");
+    masb::MaPt_in_oneTrace tracer;
+    tracer.processing(params,madata, maGeometry, sheets);
 
 }
 

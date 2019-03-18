@@ -16,7 +16,6 @@ namespace geoflow::nodes::mat {
 
   class ComputeMedialAxisNode:public Node {
     public:
-    //masb::ma_parameters params;
     float interval = 2;
     double zero=0,pi=3.14;
     using Node::Node;
@@ -69,6 +68,7 @@ namespace geoflow::nodes::mat {
       void init() {
           add_input("points", TT_point_collection);
           add_input("normals", TT_vec3f);
+          add_input("ma_coords", TT_point_collection);
           add_input("ma_qidx", TT_vec1i);
           add_output("ma_SeparationAng", TT_vec1f);
           add_output("ma_bisector", TT_vec3f);
@@ -95,7 +95,7 @@ namespace geoflow::nodes::mat {
   };
   class MedialSegmentNode :public Node {
   private:
-      masb::METHOD current_method;
+      masb::METHOD current_method = masb::bisector;
   public:
       using Node::Node;
       void init() {
@@ -112,10 +112,17 @@ namespace geoflow::nodes::mat {
           add_input("ma_SeparationAng", TT_vec1f);
           add_input("ma_bisector", TT_vec3f);
 
-          add_output("seg_id", TT_vec1i);//todo type
-          //TT_segment_collection_list, or  TT_attribute_map_f
-          add_output("madata",TT_any);
-          add_output("segmentation",TT_any);
+          add_output("seg_id", TT_vec1i);
+          add_output("sheet_all", TT_any);//#########  todo type -- line string clooection
+          add_output("ma_coords", TT_point_collection);
+          add_output("madata_in",TT_any);
+          add_output("madata_out", TT_any);
+          add_output("maGeometry_in",TT_any);
+          add_output("maGeometry_out", TT_any);
+          add_output("seg_in", TT_any);
+          add_output("seg_out", TT_any);
+          add_output("sheet_in", TT_any);
+          add_output("sheet_out",TT_any);
       }
       void gui() {
           ImGui::SliderInt("mincount", &param<int>("mincount"), 10, 100);
@@ -159,21 +166,18 @@ namespace geoflow::nodes::mat {
   };
   class MaPt_in_oneTraceNode :public Node {
   public:
-      masb::pt_in_oneTrace_pram params;
       using Node::Node;
       void init() {
-          add_input("ma_coords", TT_point_collection);
-          add_input("ma_bisector", TT_vec3f);
-          add_input("seg_id", TT_vec1i);
-          //add_output("", );
-          //how to organise output
+          add_param("SearchRadius", (float) 20.00);
+          add_input("madata", TT_any);
+          add_input("maGeometry", TT_any);
+          add_input("segmentation", TT_any);
+          add_input("sheets", TT_any);
       }
       void process();
   };
   class ExtractCandidatePtNode :public Node {
   public:
-      
-      masb::ExtractCandidatePt_pram params;
       using Node::Node;
       void init() {
           add_input("coords", TT_point_collection);

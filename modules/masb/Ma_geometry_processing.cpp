@@ -15,14 +15,15 @@ namespace masb {
         re.bisector = { x,y,z };
         */
         re.bisector = Vrui::Geometry::cross(p_norm, q_norm);
-        re.bisector.normalize();//??????2 orientation???
+        re.bisector.normalize();
         float cos_SepAng = p_norm * q_norm / p_norm.abs() / q_norm.abs();
         re.SepAng = acos(cos_SepAng);//????value range???
         return re;
     }
 
     void compute_ma_geometry(ma_data &madata, ma_Geometry &maGeometry) {
-        Vector p_norm, q_norm;
+        /*
+        Vector p_norm, cq_norm;
 
         #pragma omp parallel for private(p_norm,q_norm)
         for (int i = 0; i < madata.m*2; ++i) {
@@ -40,6 +41,26 @@ namespace masb {
                 //std::cout << "There is a all not shriking\n";
             }
         } 
+        */
+        Vector cp,cq;
+        #pragma omp parallel for private(cp,cq)
+        for (int i = 0; i < madata.m * 2; ++i) {
+            if (madata.ma_qidx[i] != -1){
+                if (i < madata.m)
+                    cp = (*madata.normals)[i];
+                else
+                    cp = -(*madata.normals)[i - madata.m];
+                Point q = (*madata.coords)[madata.ma_qidx[i]];
+                Point c = (*madata.ma_coords)[i];
+                auto cq= q - c;
+                maGeom_result res = Geom4pt(cp, cq);
+                maGeometry.ma_bisector[i] = res.bisector;
+                maGeometry.ma_SeperationAng[i] = res.SepAng;
+            }
+            else {
+                //std::cout << "There is a all not shriking\n";
+            }
+        }
     }
 
 }

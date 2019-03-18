@@ -28,11 +28,11 @@ namespace masb{
   };
 
   class MaSegProcess{
-      typedef vector<size_t> sheet;
+      //typedef vector<size_t> sheet;
   public:
       //MaSeg_result
       vector<long long int> point_segment_idx; // 0=unsegmented, maybe put this on the heap...
-      vector<sheet> shape;
+      Sheet_idx_List shape;//does not contain 0
       vector<int> shape_inout;
       void processing(MaSeg_power &power, mat_data &madata, ma_Geometry &maGeometry);
 

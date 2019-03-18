@@ -30,16 +30,17 @@ int main(int ac, const char * av[])
     //auto Trace_node = N.create_node(mat, "MaPt_in_oneTraceNode");
     //auto ExtractCandidatePt_node = N.create_node(mat, "ExtractCandidatePtNode");
     //auto ConnectCandidatePt_node = N.create_node(mat, "ConnectCandidatePtNode");
+    auto ply_write_node = N.create_node(cgal, "PLYWriter", { 1300,200 });
 
-
-    //las_loader_node->set_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/P3/urban_2.las");//"/some/path"
-    las_loader_node->set_param("filepath", (std::string) "C:\\Users\\wangq\\Downloads\\thesis\\P3\\CA_pressure_ridge_dedup.las");
+    las_loader_node->set_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/samllTest.las");//"/some/path"
+    ply_write_node->set_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/out.ply");
     connect(las_loader_node->output("points"), normals_node->input("points"));
     connect(normals_node->output("normals"), mat_node->input("normals"));
     connect(las_loader_node->output("points"), mat_node->input("points"));
     connect(las_loader_node->output("points"), geometry_node->input("points"));
     connect(normals_node->output("normals"), geometry_node->input("normals"));
     connect(mat_node->output("ma_qidx"), geometry_node->input("ma_qidx"));
+    connect(mat_node->output("ma_coords"), geometry_node->input("ma_coords"));
     connect(mat_node->output("ma_radius"), FilterR_node->input("ma_radius"));
     connect(geometry_node->output("ma_SeparationAng"), Segmen_node->input("ma_SeparationAng"));
     connect(geometry_node->output("ma_bisector"), Segmen_node->input("ma_bisector"));
