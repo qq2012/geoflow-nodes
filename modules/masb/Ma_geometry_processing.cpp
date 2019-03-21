@@ -14,10 +14,13 @@ namespace masb {
         Scalar z = p_norm[0] * q_norm[1] - q_norm[0] * p_norm[1];
         re.bisector = { x,y,z };
         */
-        re.bisector = Vrui::Geometry::cross(p_norm, q_norm);
+        
+        re.bisector = p_norm + q_norm;
         re.bisector.normalize();
+        re.norm = Vrui::Geometry::cross(p_norm, q_norm);
+        re.norm.normalize();
         float cos_SepAng = p_norm * q_norm / p_norm.abs() / q_norm.abs();
-        re.SepAng = acos(cos_SepAng);//????value range???
+        re.SepAng = acos(cos_SepAng);//value range: 0-180 degree (0 - PI rad)
         return re;
     }
 
@@ -42,6 +45,10 @@ namespace masb {
             }
         } 
         */
+        maGeometry.ma_bisector.reserve(madata.m * 2);
+        maGeometry.ma_normal.reserve(madata.m * 2);
+        maGeometry.ma_SeperationAng.reserve(madata.m * 2);
+
         Vector cp,cq;
         #pragma omp parallel for private(cp,cq)
         for (int i = 0; i < madata.m * 2; ++i) {
@@ -56,6 +63,7 @@ namespace masb {
                 maGeom_result res = Geom4pt(cp, cq);
                 maGeometry.ma_bisector[i] = res.bisector;
                 maGeometry.ma_SeperationAng[i] = res.SepAng;
+                maGeometry.ma_normal[i] = res.norm;
             }
             else {
                 //std::cout << "There is a all not shriking\n";

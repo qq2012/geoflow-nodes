@@ -134,12 +134,9 @@ void MaGeometryNode::process() {
     madata.ma_coords = &ma_coords;
     madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????????????????
 
-    std::vector<float> ma_SeparationAng_(madata.m * 2);
-    masb::VectorList ma_bisector_(madata.m * 2);
+    
     masb::ma_Geometry maGeometry;
-    maGeometry.ma_SeperationAng = ma_SeparationAng_;
-    maGeometry.ma_bisector = ma_bisector_;
-
+    
     masb::compute_ma_geometry(madata, maGeometry);
 
     vec1f ma_SeparationAng;
@@ -152,9 +149,44 @@ void MaGeometryNode::process() {
     for (auto& n : maGeometry.ma_bisector) {
         ma_bisector.push_back({ n[0], n[1], n[2] });
     }
+    vec3f ma_normal;
+    ma_normal.reserve(madata.m * 2);
+    for (auto& n : maGeometry.ma_normal) {
+        ma_bisector.push_back({ n[0], n[1], n[2] });
+    }
+
+    LineStringCollection bisec;
+    bisec.reserve(madata.ma_coords->size());
+    size_t i = 0;
+    for (auto &p : *madata.ma_coords) {
+        LineString temp;
+        LineString cp, cq;
+        if (madata.ma_qidx[i] != -1) {
+            temp.push_back({ p[0],p[1],p[2] });
+            auto end = p + maGeometry.ma_bisector[i];
+            temp.push_back({ end[0],end[1],end[2] });
+
+            cp.push_back({ p[0],p[1],p[2] });
+            cq.push_back({ p[0],p[1],p[2] });
+            if (i >= madata.m)
+                auto p = (*madata.coords)[i - madata.m];
+            else
+                auto p = (*madata.coords)[i];
+            auto q = (*madata.coords)[madata.ma_qidx[i]];
+            cp.push_back({ p[0],p[1],p[2] });
+            cq.push_back({ q[0],q[1],q[2] });
+        }
+        bisec.push_back(temp);
+        bisec.push_back(cp);
+        bisec.push_back(cq);
+        i++;
+    }
+
 
     output("ma_SeparationAng").set(ma_SeparationAng);
     output("ma_bisector").set(ma_bisector);
+    output("ma_normal").set(ma_normal);
+    output("bisec").set(bisec);
 }
 
 void FilterRNode::process() {
@@ -178,7 +210,8 @@ void MedialSegmentNode::process() {
     auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
     auto ma_SeparationAng_vec1f = input("ma_SeparationAng").get<vec1f>();
     auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
-
+    auto ma_normal_vec3f = input("ma_normal").get<vec3f>();
+    
     masb::MaSeg_power params;
     params.mincount = param<int>("mincount");
     params.maxcount = param<int>("maxcount");
@@ -234,8 +267,14 @@ void MedialSegmentNode::process() {
     for (auto& v : ma_bisector_vec3f) {
         ma_bisector.push_back(masb::Vector(v.data()));
     }
+    masb::VectorList ma_normal;
+    ma_normal.reserve(madata.m * 2);
+    for (auto& v : ma_normal_vec3f) {
+        ma_normal.push_back(masb::Vector(v.data()));
+    }
     maGeometry.ma_SeperationAng = ma_SeparationAng;
     maGeometry.ma_bisector = ma_bisector;
+    maGeometry.ma_normal = ma_normal;
 
     //masb::intList remainingma_in_out;
     masb::idx_filter filter;
@@ -287,7 +326,7 @@ void MedialSegmentNode::process() {
 }
 
 void MaPt_in_oneTraceNode::process() {
-    auto madata = input("ma_coords").get<masb::mat_data>();
+    auto madata = input("madata").get<masb::mat_data>();
     auto maGeometry = input("maGeometry").get<masb::ma_Geometry>();
     auto sheets = input("sheets").get<masb::Sheet_idx_List>();
 
@@ -296,6 +335,43 @@ void MaPt_in_oneTraceNode::process() {
     masb::MaPt_in_oneTrace tracer;
     tracer.processing(params,madata, maGeometry, sheets);
 
+    vec1i seg_idx_;
+    PointCollection candidate_r_, candidate_cos_;
+    candidate_r_.reserve(tracer.candidate_size);
+    candidate_cos_.reserve(tracer.candidate_size);
+
+    int i = 0;
+    for (auto canInSheet : tracer.candidate_r) {
+        for (auto p : canInSheet) {
+            candidate_r_.push_back({ p[0], p[1], p[2] });
+        }
+        vec1i temp;
+        temp.resize(canInSheet.size(), i++);//check should start from 1;
+        seg_idx_.insert(seg_idx_.end(), temp.begin(), temp.end());
+    }
+    for (auto canInSheet : tracer.candidate_cos) {
+        for (auto p : canInSheet) {
+            candidate_cos_.push_back({ p[0], p[1], p[2] });
+        }
+    }
+    LineStringCollection traces;
+    //int j =0;
+    for (auto &traces_in_1_sheet : tracer.all_traces) {
+        for (auto & a_trace : traces_in_1_sheet) {
+            LineString a_trace_LineString;
+            a_trace_LineString.reserve(a_trace.size());
+            for (auto p : a_trace) {
+                a_trace_LineString.push_back({ p[0], p[1], p[2] });
+            }
+            traces.push_back(a_trace_LineString);
+        }
+    }
+
+    output("candidate_r").set(candidate_r_);
+    output("candidate_cos").set(candidate_cos_);
+    output("lable").set(seg_idx_);
+    output("traces").set(traces);// TT_line_string_collection);
+    
 }
 
 void ExtractCandidatePtNode::process() {

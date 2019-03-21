@@ -33,10 +33,6 @@ namespace geoflow::nodes::mat {
         add_output("coords_masb", TT_any);
     }
     void gui(){
-      //ImGui::SliderFloat("initial_radius", &params.initial_radius, 0, 1000);
-      //ImGui::SliderScalar("denoise_preserve", ImGuiDataType_Double, &params.denoise_preserve, &zero, &pi);
-      //ImGui::SliderScalar("denoise_planar", ImGuiDataType_Double, &params.denoise_planar, &zero, &pi);
-      //ImGui::Checkbox("nan_for_initr", &params.nan_for_initr);
       ImGui::SliderFloat("initial_radius", &param<float>("initial_radius"), 0, 1000);
       ImGui::SliderScalar("denoise_preserve", ImGuiDataType_Double, &param<double>("denoise_preserve"), &zero, &pi);
       ImGui::SliderScalar("denoise_planar", ImGuiDataType_Double, &param<double>("denoise_planar"), &zero, &pi);
@@ -72,6 +68,8 @@ namespace geoflow::nodes::mat {
           add_input("ma_qidx", TT_vec1i);
           add_output("ma_SeparationAng", TT_vec1f);
           add_output("ma_bisector", TT_vec3f);
+          add_output("bisec",TT_line_string_collection);
+          add_output("ma_normal", TT_vec3f);
       }
       void process();
   };
@@ -80,7 +78,7 @@ namespace geoflow::nodes::mat {
       //float radius = 200.00;
       using Node::Node;
       void init() {
-          add_param("filterRadius", (float) 200.00);
+          add_param("filterRadius", (float) 100.00);
           //add_param("filterRadius", param<float>("initial_radius"));
           add_input("ma_radius", TT_vec1f);
           add_output("remaining_idx", TT_vec1i);
@@ -111,6 +109,7 @@ namespace geoflow::nodes::mat {
           add_input("ma_radius", TT_vec1f);
           add_input("ma_SeparationAng", TT_vec1f);
           add_input("ma_bisector", TT_vec3f);
+          add_input("ma_normal", TT_vec3f);
 
           add_output("seg_id", TT_vec1i);
           add_output("sheet_all", TT_any);//#########  todo type -- line string clooection
@@ -125,7 +124,7 @@ namespace geoflow::nodes::mat {
           add_output("sheet_out",TT_any);
       }
       void gui() {
-          ImGui::SliderInt("mincount", &param<int>("mincount"), 10, 100);
+          ImGui::SliderInt("mincount", &param<int>("mincount"), 5, 100);
           ImGui::SliderInt("maxcount", &param<int>("maxcount"), 100, 2000);
 
           const char* items[] = { "bisector", "radius","thirdopt" };
@@ -168,11 +167,16 @@ namespace geoflow::nodes::mat {
   public:
       using Node::Node;
       void init() {
-          add_param("SearchRadius", (float) 20.00);
+          add_param("SearchRadius", (float) 45.00);
           add_input("madata", TT_any);
           add_input("maGeometry", TT_any);
-          add_input("segmentation", TT_any);
+          //add_input("segmentation", TT_any);
           add_input("sheets", TT_any);
+
+          add_output("candidate_r",TT_point_collection);
+          add_output("candidate_cos", TT_point_collection);
+          add_output("lable",TT_vec1i);
+          add_output("traces", TT_line_string_collection);
       }
       void process();
   };

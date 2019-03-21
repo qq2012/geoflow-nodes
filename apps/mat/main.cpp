@@ -27,7 +27,8 @@ int main(int ac, const char * av[])
     auto geometry_node = N.create_node(mat, "MaGeometryNode", { 700,50 });
     auto FilterR_node = N.create_node(mat, "FilterRNode", { 700,300 });
     auto Segmen_node = N.create_node(mat, "MedialSegmentNode", { 1000,200 });
-    //auto Trace_node = N.create_node(mat, "MaPt_in_oneTraceNode");
+    auto Trace_node1 = N.create_node(mat, "MaPt_in_oneTraceNode", {1300,100});
+    auto Trace_node2 = N.create_node(mat, "MaPt_in_oneTraceNode", {1300,300});
     //auto ExtractCandidatePt_node = N.create_node(mat, "ExtractCandidatePtNode");
     //auto ConnectCandidatePt_node = N.create_node(mat, "ConnectCandidatePtNode");
     auto ply_write_node = N.create_node(cgal, "PLYWriter", { 1300,200 });
@@ -48,6 +49,10 @@ int main(int ac, const char * av[])
     connect(mat_node->output("ma_qidx"), Segmen_node->input("ma_qidx"));
     connect(mat_node->output("ma_radius"), Segmen_node->input("ma_radius"));
     connect(FilterR_node->output("remaining_idx"), Segmen_node->input("remaining_idx"));
+
+    connect(Segmen_node->output("madata_in"), Trace_node1->input("madata"));
+    connect(Segmen_node->output("maGeometry_in"), Trace_node1->input("maGeometry"));
+    connect(Segmen_node->output("sheet_in"), Trace_node1->input("sheets"));
 
 
     launch_flowchart(N, {cgal, las, mat});

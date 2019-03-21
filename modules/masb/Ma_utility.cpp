@@ -17,8 +17,10 @@ void idx_filter::processing(ma_data &madata, ma_Geometry &maGeometry,
     floatList re_radius_;    re_radius_.reserve(size);
     intList re_qidx_;    re_qidx_.reserve(size);
     VectorList re_bisector_;    re_bisector_.reserve(size);
+    VectorList re_ma_normal_;    re_ma_normal_.reserve(size);
     floatList re_SeperationAng_;    re_SeperationAng_.reserve(size);
     intList re_in_out_; re_in_out_.reserve(size);
+    
     //remainingma_in_out.reserve(size);
 
     for (auto &idx : remaining_idx) {
@@ -26,14 +28,17 @@ void idx_filter::processing(ma_data &madata, ma_Geometry &maGeometry,
         re_radius_.push_back((*madata.ma_radius)[idx]);
         re_qidx_.push_back(madata.ma_qidx[idx]);
         re_bisector_.push_back(maGeometry.ma_bisector[idx]);
+        re_ma_normal_.push_back(maGeometry.ma_normal[idx]);
         re_SeperationAng_.push_back(maGeometry.ma_SeperationAng[idx]);
         re_in_out_.push_back(ma_is_interior[idx]);
+        
     }
     remainingData.ma_coords = re_coords_;
     remainingData.ma_radius = re_radius_;
     remainingData.ma_qidx = re_qidx_;
     remainingData.in_out = re_in_out_;
     remainingGeometry.ma_bisector = re_bisector_;
+    remainingGeometry.ma_normal = re_ma_normal_;
     remainingGeometry.ma_SeperationAng = re_SeperationAng_;
 
     auto it = std::find(re_in_out_.begin(), re_in_out_.end(), 0);
@@ -52,6 +57,7 @@ void idx_filter::processing(mat_data &madata, ma_Geometry &maGeometry,
     floatList re_radius_;    re_radius_.reserve(size);
     intList re_qidx_;    re_qidx_.reserve(size);
     VectorList re_bisector_;    re_bisector_.reserve(size);
+    VectorList re_ma_normal_;    re_ma_normal_.reserve(size);
     floatList re_SeperationAng_;    re_SeperationAng_.reserve(size);
     intList re_in_out_; re_in_out_.reserve(size);
 
@@ -61,6 +67,7 @@ void idx_filter::processing(mat_data &madata, ma_Geometry &maGeometry,
         re_qidx_.push_back(madata.ma_qidx[idx]);
         re_in_out_.push_back(madata.in_out[idx]);
         re_bisector_.push_back(maGeometry.ma_bisector[idx]);
+        re_ma_normal_.push_back(maGeometry.ma_normal[idx]);
         re_SeperationAng_.push_back(maGeometry.ma_SeperationAng[idx]);
     }
     remainingData.ma_coords = re_coords_;
@@ -68,6 +75,7 @@ void idx_filter::processing(mat_data &madata, ma_Geometry &maGeometry,
     remainingData.ma_qidx = re_qidx_;
     remainingData.in_out = re_in_out_;
     remainingGeometry.ma_bisector = re_bisector_;
+    remainingGeometry.ma_normal = re_ma_normal_;
     remainingGeometry.ma_SeperationAng = re_SeperationAng_;
         
     remainingData.in_ptsize = std::count(remainingData.in_out.begin(), 
@@ -101,6 +109,7 @@ void splitInOut::processing(mat_data &madata, ma_Geometry &maGeometry, bool InFl
     madata_new.ma_radius = VectorSlice(madata.ma_radius, size, begin);
     madata_new.ma_qidx = VectorSlice(madata.ma_qidx, size, begin);
     maGeometry_new.ma_bisector = VectorSlice(maGeometry.ma_bisector, size, begin);
+    maGeometry_new.ma_normal = VectorSlice(maGeometry.ma_normal, size, begin);
     maGeometry_new.ma_SeperationAng = VectorSlice(maGeometry.ma_SeperationAng,size, begin);
 }
 

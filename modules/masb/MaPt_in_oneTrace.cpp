@@ -26,7 +26,9 @@ size_tList MaPt_in_oneTrace::find_trace(pt_Trace_pram&power, size_t &pt_idx,
             Vector vec_pt_bis = maGeometry.ma_bisector[pt_idx];
             Point candidate_pt = maData.ma_coords[candidate.idx];
             auto vec_ptCand = candidate_pt - pt;
-            if (validateCandidate(power.deviationAng_thres, vec_pt_bis, vec_ptCand)) {
+            vec_ptCand.normalize();
+            if (maData.ma_radius[candidate.idx] < maData.ma_radius[pt_idx] &&
+                validateCandidate(power.deviationAng_thres, vec_pt_bis, vec_ptCand)) {
                 trace.push_back(candidate.idx);
                 pt_idx = candidate.idx;
                 visitFlag[candidate.idx] = 1;
@@ -37,18 +39,27 @@ size_tList MaPt_in_oneTrace::find_trace(pt_Trace_pram&power, size_t &pt_idx,
         }
     }
     return trace;
-
 }
 void MaPt_in_oneTrace::processing(pt_Trace_pram& power, mat_data &madata, ma_Geometry &maGeometry, Sheet_idx_List &sheets) {
     //params.update();
+    std::cout << "there are " << sheets.size() << " sheets\n";
     size_tList sheet_idx;
     size_t seg_id = 0;
+    this->candidate_r.resize(sheets.size());
+    this->candidate_cos.resize(sheets.size());
+    this->candidate_dir.resize(sheets.size());
+    this->segmentation.resize(sheets.size());
+    this->all_traces.resize(sheets.size());
 #pragma omp parallel for private(sheet_idx)
     for (size_t i = 0; i < sheets.size(); ++i) {
         sheet_idx = sheets[i];
         seg_id = i + 1;
+        //std::cout << "start sheet " << seg_id << "\n";
         intList visitFlag; visitFlag.resize(sheet_idx.size(),0);
-        
+        PointList candidatept_r, candidatept_cos;
+        VectorList candidatept_dir;
+        traces_in_one_sheet traces_in_one_sheet;
+
         masb::idx_filter filter;
         mat_data maSheetData;
         ma_Geometry masheetGeometry;
@@ -66,11 +77,42 @@ void MaPt_in_oneTrace::processing(pt_Trace_pram& power, mat_data &madata, ma_Geo
         }
 
         while (pq.size() > 0) {
+            //std::cout << "pt_idx" << pq.top().first 
+            //    << "\tpt_radius " << pq.top().second << "\n";
             auto pt_idx = pq.top().first; pq.pop();
+            
             if (visitFlag[pt_idx] == 0) {
                 visitFlag[pt_idx] = 1;
                 auto a_trace = find_trace(power, pt_idx, maSheetData, masheetGeometry, visitFlag);
+                if (a_trace.size() > 1) {
+                    //auto idx = a_trace.back();
+                    auto pt = maSheetData.ma_coords[a_trace.back()];
+                    auto r = maSheetData.ma_radius[a_trace.back()];
+                    auto bisec = masheetGeometry.ma_bisector[a_trace.back()];
+                    auto SepAng = masheetGeometry.ma_SeperationAng[a_trace.back()];
+                    //auto vec = bisec * r;
+                    //auto can = pt + bisec * r;
+                    candidatept_r.push_back(pt + bisec * r);
+                    //auto can = pt + bisec * (r / cos(SepAng / 2));
+                    candidatept_cos.push_back(pt + bisec * (r / cos(SepAng / 2)));
+                    candidatept_dir.push_back(masheetGeometry.ma_normal[a_trace.back()]);
+                    
+                    PointList a_trace_pt;
+                    a_trace_pt.reserve(a_trace.size());
+                    for (auto idx : a_trace) {
+                        a_trace_pt.push_back(maSheetData.ma_coords[idx]);
+                    }
+                    traces_in_one_sheet.push_back(a_trace_pt);
+                }
             }
         }
+        //std::cout << "finish sheet " << seg_id << "\n";
+        this->candidate_r[i] = candidatept_r;
+        this->candidate_cos[i] = candidatept_cos;
+        this->candidate_dir[i] = candidatept_dir;
+        this->segmentation[i] = seg_id;
+        this->all_traces[i] = traces_in_one_sheet;
+        this->candidate_size += candidatept_r.size();
+        
     }
 }
