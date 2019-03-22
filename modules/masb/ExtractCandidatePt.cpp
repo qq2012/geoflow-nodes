@@ -1,7 +1,89 @@
 #include "ExtractCandidatePt.h"
 using namespace masb;
 
-void ExtractCandidatePt::processing() {
+inline bool ExtractCandidatePt::validateCandidate(float deviationAng_thres, Vector &vec1, Vector &vec2) {
+    return vec1 * vec2 > deviationAng_thres;
+}
+
+void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, mat_data &madata,
+    ma_Geometry &maGeometry, Sheet_idx_List &sheets) {
+    for (auto &a_sheet : sheets) {
+        masb::idx_filter filter;
+        mat_data maSheetData;
+        ma_Geometry masheetGeometry;
+        filter.processing(madata, maGeometry, a_sheet, maSheetData, masheetGeometry);
+        //intList ma_pidx; ma_pidx = sheet_idx;
+        if (maSheetData.kdtree_ma_coords == NULL)
+            maSheetData.kdtree_ma_coords = new kdtree2::KDTree(maSheetData.ma_coords, true);
+        maSheetData.kdtree_ma_coords->sort_results = true;
+
+        intList visitFlag; visitFlag.resize(a_sheet.size(), 0);
+        size_tList candidatept_idx;
+        int i_next = -1;
+        for (int i = 0; i < maSheetData.ma_coords.size(); i++) {
+            i_next = i;
+            while (i_next != -1 && visitFlag[i_next] == 0){
+                visitFlag[i_next] == 1;
+                kdtree2::KDTreeResultVector neighbours;
+                Point pt = maSheetData.ma_coords[i_next];
+                maSheetData.kdtree_ma_coords->r_nearest(pt, power.SearchRadius, neighbours);
+                if (neighbours.size() == 1) {
+                    i_next = -1;
+                }
+                else {
+                    float r = maSheetData.ma_radius[i_next];
+                    std::vector<size_t> smallRindL;
+                    for (auto &candidate : neighbours) {
+                        if (maSheetData.ma_radius[candidate.idx] < r) {
+                            smallRindL.push_back(candidate.idx);
+                        }
+                    }
+                    if (smallRindL.size() == 0) {
+                        candidatept_idx.push_back(i_next);
+                        i_next = -1;
+                    }
+                    else {
+                        int con = 0;
+                        for (auto idx : smallRindL) {
+                            Vector vec_pt_bis = masheetGeometry.ma_bisector[i_next];
+                            Point candidate_pt = maSheetData.ma_coords[idx];
+                            auto vec_ptCand = candidate_pt - pt;
+                            vec_ptCand.normalize();
+                            if (validateCandidate(power.deviationAng_thres, vec_pt_bis, vec_ptCand)) {
+                                i_next = idx;
+                                break;
+                            }
+                            else {
+                                con++;
+                            }
+                        }
+                        if (con == smallRindL.size()) {
+                            candidatept_idx.push_back(i_next);
+                            i_next = -1;
+                        }
+                    }
+                }
+            }
+        }
+        PointList candidatept_r, candidatept_cos;
+        VectorList candidatept_dir;
+        for (auto idx : candidatept_idx) {
+            auto pt = maSheetData.ma_coords[idx];
+            auto r = maSheetData.ma_radius[idx];
+            auto bisec = masheetGeometry.ma_bisector[idx];
+            auto SepAng = masheetGeometry.ma_SeperationAng[idx];
+            //auto vec = bisec * r;
+            //auto can = pt + bisec * r;
+            candidatept_r.push_back(pt + bisec * r);
+            //auto can = pt + bisec * (r / cos(SepAng / 2));
+            candidatept_cos.push_back(pt + bisec * (r / cos(SepAng / 2)));
+            candidatept_dir.push_back(masheetGeometry.ma_normal[idx]);
+        }
+        this->candidate_cos.push_back(candidatept_cos);
+        this->candidate_r.push_back(candidatept_r);
+        this->candidate_dir.push_back(candidatept_dir);
+        this->candidate_size += candidatept_r.size();
+    }
 
 }
 

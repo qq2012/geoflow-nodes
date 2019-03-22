@@ -133,9 +133,15 @@ void MaGeometryNode::process() {
     madata.normals = &normals;
     madata.ma_coords = &ma_coords;
     madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????????????????
-
+    
+    masb::floatList ma_SeparationAng_(madata.m * 2);
+    masb::VectorList ma_bisector_(madata.m * 2);
+    masb::VectorList ma_normal_(madata.m * 2);
     
     masb::ma_Geometry maGeometry;
+    maGeometry.ma_SeperationAng = ma_SeparationAng_;
+    maGeometry.ma_bisector = ma_bisector_;
+    maGeometry.ma_normal = ma_normal_;
     
     masb::compute_ma_geometry(madata, maGeometry);
 
@@ -146,13 +152,13 @@ void MaGeometryNode::process() {
     }
     vec3f ma_bisector;
     ma_bisector.reserve(madata.m * 2);
-    for (auto& n : maGeometry.ma_bisector) {
+    for (auto n : maGeometry.ma_bisector) {
         ma_bisector.push_back({ n[0], n[1], n[2] });
     }
     vec3f ma_normal;
     ma_normal.reserve(madata.m * 2);
     for (auto& n : maGeometry.ma_normal) {
-        ma_bisector.push_back({ n[0], n[1], n[2] });
+        ma_normal.push_back({ n[0], n[1], n[2] });
     }
 
     LineStringCollection bisec;
@@ -165,7 +171,7 @@ void MaGeometryNode::process() {
             temp.push_back({ p[0],p[1],p[2] });
             auto end = p + maGeometry.ma_bisector[i];
             temp.push_back({ end[0],end[1],end[2] });
-
+            /*
             cp.push_back({ p[0],p[1],p[2] });
             cq.push_back({ p[0],p[1],p[2] });
             if (i >= madata.m)
@@ -175,13 +181,13 @@ void MaGeometryNode::process() {
             auto q = (*madata.coords)[madata.ma_qidx[i]];
             cp.push_back({ p[0],p[1],p[2] });
             cq.push_back({ q[0],q[1],q[2] });
+            */
         }
         bisec.push_back(temp);
-        bisec.push_back(cp);
-        bisec.push_back(cq);
+        //bisec.push_back(cp);
+        //bisec.push_back(cq);
         i++;
     }
-
 
     output("ma_SeparationAng").set(ma_SeparationAng);
     output("ma_bisector").set(ma_bisector);
@@ -375,8 +381,32 @@ void MaPt_in_oneTraceNode::process() {
 }
 
 void ExtractCandidatePtNode::process() {
+    auto madata = input("madata").get<masb::mat_data>();
+    auto maGeometry = input("maGeometry").get<masb::ma_Geometry>();
+    auto sheets = input("sheets").get<masb::Sheet_idx_List>();
 
+    masb::ExtractCandidatePt_pram  params;
+    params.SearchRadius = param<float>("SearchRadius");
+    masb::ExtractCandidatePt extractor;
+    extractor.processing(params, madata, maGeometry, sheets);
 
+    PointCollection candidate_r_, candidate_cos_;
+    candidate_r_.reserve(extractor.candidate_size);
+    candidate_cos_.reserve(extractor.candidate_size);
+
+    int i = 0;
+    for (auto canInSheet : extractor.candidate_r) {
+        for (auto p : canInSheet) {
+            candidate_r_.push_back({ p[0], p[1], p[2] });
+        }
+    }
+    for (auto canInSheet : extractor.candidate_cos) {
+        for (auto p : canInSheet) {
+            candidate_cos_.push_back({ p[0], p[1], p[2] });
+        }
+    }
+    output("candidate_r").set(candidate_r_);
+    output("candidate_cos").set(candidate_cos_);
 }
 void ConnectCandidatePtNode::process() {
 

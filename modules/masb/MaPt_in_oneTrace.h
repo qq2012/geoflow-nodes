@@ -34,5 +34,4 @@ namespace masb{
         inline bool validateCandidate(float deviationAng_thres, Vector &vec1, Vector &vec2);
     };
 }
-
 #endif

@@ -184,17 +184,14 @@ namespace geoflow::nodes::mat {
   public:
       using Node::Node;
       void init() {
-          add_input("coords", TT_point_collection);
-          add_input("ma_coords", TT_point_collection);
-          add_input("ma_bisector", TT_vec3f);
-          add_input("seg_id", TT_vec1i);
-          add_input("ma_radius", TT_vec1f);
-          //add_input("", ); //output of MaPt_in_oneTraceNode
-          add_output("BreaklineCandidatePt", TT_point_collection);
-          add_output("BreaklineCandidatePtDirection", TT_vec3f);
-      }
-      void gui() {
-          //for different method have different input????????
+          add_param("SearchRadius", (float) 45.00);
+          add_input("madata", TT_any);
+          add_input("maGeometry", TT_any);
+          //add_input("segmentation", TT_any);
+          add_input("sheets", TT_any);
+
+          add_output("candidate_r", TT_point_collection);
+          add_output("candidate_cos", TT_point_collection);
       }
       void process();
   };
