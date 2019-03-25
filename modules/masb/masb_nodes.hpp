@@ -8,9 +8,6 @@
 #include "ExtractCandidatePt.h"
 #include "MaPt_in_oneTrace.h"
 
-#include <iostream>
-
-
 
 namespace geoflow::nodes::mat {
 
@@ -196,6 +193,18 @@ namespace geoflow::nodes::mat {
       void process();
   };
 
+  class ReadCandidatePtNode :public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_output("candidate_r", TT_point_collection);
+          add_output("directon_vis", TT_line_string_collection);
+          add_output("directon", TT_vec3f);
+          add_output("seg_id", TT_vec1i);
+      }
+      void process();
+  };
+
   class ConnectCandidatePtNode :public Node {
   public:
       //masb::_pram params;
@@ -203,4 +212,5 @@ namespace geoflow::nodes::mat {
       void init() {}
       void process();
   };
+
 }

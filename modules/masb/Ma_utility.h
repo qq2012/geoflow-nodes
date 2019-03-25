@@ -3,6 +3,17 @@
 
 #include "madata.h"
 #include <variant>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+
+#include <sstream>
+#include <algorithm>
+#include <iterator>
+#include <vector>
+#include <iterator>
+
 namespace masb {
 
     class idx_filter {
@@ -33,6 +44,21 @@ namespace masb {
         std::vector<T> newVec(first, last);
         return newVec;
     }
+    template<typename Out>
+    void split(const std::string &s, char delim, Out result) {
+        std::stringstream ss(s);
+        std::string item;
+        while (std::getline(ss, item, delim)) {
+            *(result++) = item;
+        }
+    }
+    inline std::vector<std::string> split2nums(const std::string &s, char delim) {
+        std::vector<std::string> elems;
+        split(s, delim, std::back_inserter(elems));
+        return elems;
+    }
+
+
 }
 
 

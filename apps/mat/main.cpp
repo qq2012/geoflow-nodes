@@ -21,6 +21,8 @@ int main(int ac, const char * av[])
     NodeRegister mat = gfn::mat::create_register();
     NodeRegister las = gfn::las::create_register();
 
+    auto readcandidatept_node = N.create_node(mat, "ReadCandidatePtNode", { 400,100 });
+    /*
     auto las_loader_node = N.create_node(las, "LASLoader", { 100,100 });
     auto normals_node = N.create_node(mat, "ComputeNormalsNode", { 400,0 });
     auto mat_node = N.create_node(mat, "ComputeMedialAxisNode", { 400,200 });
@@ -58,7 +60,7 @@ int main(int ac, const char * av[])
     connect(Segmen_node->output("madata_in"), ExtractCandidatePt_node->input("madata"));
     connect(Segmen_node->output("maGeometry_in"), ExtractCandidatePt_node->input("maGeometry"));
     connect(Segmen_node->output("sheet_in"), ExtractCandidatePt_node->input("sheets"));
-
+    */
 
     launch_flowchart(N, {cgal, las, mat});
 }

@@ -408,6 +408,69 @@ void ExtractCandidatePtNode::process() {
     output("candidate_r").set(candidate_r_);
     output("candidate_cos").set(candidate_cos_);
 }
+void ReadCandidatePtNode::process() {
+    PointCollection candidate_r_;
+    vec3f direction_;
+    vec1i seg_id_;
+
+    //std::vector<double> v;
+    std::ifstream infile;
+    std::string filepath;
+    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/2cpp.ply";
+    infile.open(filepath);
+    std::string dummyLine;
+    int size;
+    int i = 0;
+    while (i < 12) {
+        std::getline(infile, dummyLine);
+        if (i == 3) {
+            auto elems = masb::split2nums(dummyLine, ' ');
+            size = ::atof(elems[2].c_str());
+        }
+        i++;
+    }
+    candidate_r_.reserve(size);
+    direction_.reserve(size);
+    seg_id_.reserve(size);
+
+    std::string numbers;
+    while (!infile.eof()) {
+        std::getline(infile, numbers);
+        auto elems = masb::split2nums(numbers, ' ');
+        float x = ::atof(elems[0].c_str());
+        float y = ::atof(elems[1].c_str());
+        float z = ::atof(elems[2].c_str());
+        int seg_idx = ::atof(elems[3].c_str());
+        float nx = ::atof(elems[4].c_str());
+        float ny = ::atof(elems[5].c_str());
+        float nz = ::atof(elems[6].c_str());
+        candidate_r_.push_back({ x,y,z });
+        seg_id_.push_back(seg_idx);
+        direction_.push_back({ nx,ny,nz });
+        //i++;
+    }
+    infile.close();
+    if (candidate_r_.size() != size)
+        std::cout << "candidate error" << std::endl;
+    if (seg_id_.size() != size)
+        std::cout << "candidate error" << std::endl;
+    if (direction_.size() != size)
+        std::cout << "candidate error" << std::endl;
+
+    LineStringCollection directon_vis_;
+    for (int j = 0; j < size;++j ) {
+        auto p = candidate_r_[j];
+        auto v = direction_[i];
+        LineString tmp;
+        tmp.push_back(p);
+        tmp.push_back({ p[0] + v[0], p[1] + v[1], p[2] + v[2] });
+    }
+
+    output("candidate_r").set(candidate_r_);
+    output("directon").set(direction_);
+    output("seg_id").set(seg_id_);
+    output("directon_vis").set(directon_vis_);//directon_vis
+}
 void ConnectCandidatePtNode::process() {
 
 }
