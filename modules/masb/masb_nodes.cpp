@@ -205,7 +205,7 @@ void FilterRNode::process() {
         if (ma_radius_vec1f[i] < radius)
             remaining_idx.push_back(i);
     }
-    std::cout << remaining_idx.data() << '\n';
+    //std::cout << remaining_idx.data() << '\n';
     output("remaining_idx").set(remaining_idx);
 }
 
@@ -457,22 +457,195 @@ void ReadCandidatePtNode::process() {
     if (direction_.size() != size)
         std::cout << "candidate error" << std::endl;
 
-    LineStringCollection directon_vis_;
-    for (int j = 0; j < size;++j ) {
-        auto p = candidate_r_[j];
-        auto v = direction_[i];
-        LineString tmp;
-        tmp.push_back(p);
-        tmp.push_back({ p[0] + v[0], p[1] + v[1], p[2] + v[2] });
+    
+    output("candidate_r").set(candidate_r_);
+    output("directon").set(direction_);
+    output("seg_id").set(seg_id_);
+}
+
+void ReadCandidatePtWithBisecNode::process() {
+    PointCollection candidate_r_;
+    vec3f direction_, bisector_p_, bisector_q_;
+    vec1i seg_id_;
+
+    std::ifstream infile;
+    std::string filepath;
+    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
+    infile.open(filepath);
+    std::string dummyLine;
+    int size;
+    int i = 0;
+    while (i < 18) {
+        std::getline(infile, dummyLine);
+        if (i == 3) {
+            auto elems = masb::split2nums(dummyLine, ' ');
+            size = ::atof(elems[2].c_str());
+        }
+        i++;
     }
+    candidate_r_.reserve(size);
+    direction_.reserve(size);
+    seg_id_.reserve(size);
+    bisector_p_.reserve(size);
+    bisector_q_.reserve(size);
+
+    std::string numbers;
+    while (!infile.eof()) {
+        std::getline(infile, numbers);
+        auto elems = masb::split2nums(numbers, ' ');
+        float x = ::atof(elems[0].c_str());
+        float y = ::atof(elems[1].c_str());
+        float z = ::atof(elems[2].c_str());
+        int seg_idx = ::atof(elems[3].c_str());
+        float nx = ::atof(elems[4].c_str());
+        float ny = ::atof(elems[5].c_str());
+        float nz = ::atof(elems[6].c_str());
+        float bpx = ::atof(elems[7].c_str());
+        float bpy = ::atof(elems[8].c_str());
+        float bpz = ::atof(elems[9].c_str());
+        float bqx = ::atof(elems[10].c_str());
+        float bqy = ::atof(elems[11].c_str());
+        float bqz = ::atof(elems[12].c_str());
+        candidate_r_.push_back({ x,y,z });
+        seg_id_.push_back(seg_idx);
+        direction_.push_back({ nx,ny,nz });
+        bisector_p_.push_back({ bpx,bpy,bpz });
+        bisector_q_.push_back({ bqx,bqy,bqz });
+        //i++;
+    }
+    infile.close();
+    if (candidate_r_.size() != size)
+        std::cout << "candidate error" << std::endl;
+    if (seg_id_.size() != size)
+        std::cout << "candidate error" << std::endl;
+    if (direction_.size() != size)
+        std::cout << "candidate error" << std::endl;
+    if (bisector_p_.size() != size)
+        std::cout << "bisector_p error" << std::endl;
+    if (bisector_q_.size() != size)
+        std::cout << "bisector_q_ error" << std::endl;
 
     output("candidate_r").set(candidate_r_);
     output("directon").set(direction_);
     output("seg_id").set(seg_id_);
-    output("directon_vis").set(directon_vis_);//directon_vis
+    output("bisector_p").set(bisector_p_);
+    output("bisector_q").set(bisector_q_);
 }
+
 void ConnectCandidatePtNode::process() {
 
+    auto pointCloud_ptcollection = input("pointCloud").get<PointCollection>();
+    auto candidate_r_ptcollection = input("candidate").get<PointCollection>();
+    auto directon_vec3f = input("directon").get<vec3f>();
+    auto seg_id_vec1i = input("seg_id").get<vec1i>();
+    auto bisector_p_vec3f = input("bisector_p").get<vec3f>(); 
+    auto bisector_q_vec3f = input("bisector_q").get<vec3f>();
+
+    masb::PointList pointCloud;
+    pointCloud.reserve(pointCloud_ptcollection.size());
+    for (auto& p : pointCloud_ptcollection) {
+        pointCloud.push_back(masb::Point(p.data()));
+    }
+
+    size_t size = candidate_r_ptcollection.size();
+    masb::PointList candidate_r;
+    candidate_r.reserve(size);
+    for (auto& p : candidate_r_ptcollection) {
+        candidate_r.push_back(masb::Point(p.data()));
+    }
+    masb::VectorList directon;
+    directon.reserve(size);
+    for (auto& n : directon_vec3f) {
+        auto n_normlize = masb::Vector(n.data()).normalize();
+        directon.push_back(n_normlize);
+    }
+    masb::VectorList bisector_p;
+    bisector_p.reserve(size);
+    for (auto& bp : bisector_p_vec3f) {
+        auto bp_normlize = masb::Vector(bp.data()).normalize();
+        bisector_p.push_back(bp_normlize);
+    }
+    masb::VectorList bisector_q;
+    bisector_q.reserve(size);
+    for (auto& bq : bisector_q_vec3f) {
+        auto bq_normlize = masb::Vector(bq.data()).normalize();
+        bisector_q.push_back(bq_normlize);
+    }
+    masb::intList seg_id;
+    seg_id.reserve(size);
+    for (auto id : seg_id_vec1i) {
+        seg_id.push_back(id);
+    }
+
+    auto filter = ridge::connectCandidatePtProcess(pointCloud, candidate_r, seg_id, directon, bisector_p, bisector_q);
+
+    LineStringCollection directon_vis_;
+    LineStringCollection directon2_vis_;
+    LineStringCollection bisec_p_vis_;
+    LineStringCollection bisec_q_vis_;
+    for (int j = 0; j < size; ++j) {
+        auto p = candidate_r[j];
+        auto v = directon[j];
+        auto bp = bisector_p[j];
+        auto bq = bisector_q[j];
+        LineString tmp, tmp2, tmp_bp,tmp_bq;
+        tmp.push_back({ p[0],p[1],p[2] });
+        tmp2.push_back({ p[0],p[1],p[2] });
+        tmp_bp.push_back({ p[0],p[1],p[2] });
+        tmp_bq.push_back({ p[0],p[1],p[2] });
+        auto end = p + v;
+        auto v2= Vrui::Geometry::cross(bp, bq);
+        v2 = v2.normalize();
+        auto end2 = p + v2;
+        auto end_bp = p + bp;
+        auto end_bq = p + bq;
+        tmp.push_back({ end[0] ,end[1] ,end[2] });
+        tmp2.push_back({ end2[0] ,end2[1] ,end2[2] });
+        tmp_bp.push_back({ end_bp[0] ,end_bp[1] ,end_bp[2] });
+        tmp_bq.push_back({ end_bq[0] ,end_bq[1] ,end_bq[2] });
+        directon_vis_.push_back(tmp);
+        directon2_vis_.push_back(tmp2);
+        bisec_p_vis_.push_back(tmp_bp);
+        bisec_q_vis_.push_back(tmp_bq);
+    }
+    output("directon_vis").set(directon_vis_);//directon_vis
+    output("directon2_vis").set(directon2_vis_);
+    output("bisector_p_vis").set(bisec_p_vis_);
+    output("bisector_q_vis").set(bisec_q_vis_);
+    output("filter").set(filter);
+}
+void PLYLoaderNode::process() {
+    int k = param<int>("thinning_factor");
+    std::string filepath = param<std::string>("filepath");
+
+    std::ifstream infile;
+    infile.open(filepath);
+    std::string dummyLine;
+    int size;
+    int i = 0;
+    while (i < 8) {
+        std::getline(infile, dummyLine);
+        std::cout << i << "--" << dummyLine << std::endl;
+        if (i == 3) {
+            auto elems = masb::split2nums(dummyLine, ' ');
+            size = ::atof(elems[2].c_str());
+        }
+        i++;
+    }
+    PointCollection PointCloud_;
+    PointCloud_.reserve(size / k + 1);
+    std::string xyz;
+    for (int j = 0; j < size ; j++) {
+        std::getline(infile, xyz);
+        if (j%k == 0) {
+            auto elems = masb::split2nums(xyz, ' ');
+            float x = ::atof(elems[0].c_str());
+            float y = ::atof(elems[1].c_str());
+            float z = ::atof(elems[2].c_str());
+            PointCloud_.push_back({ x,y,z });
+        }
+    }
+    output("PointCloud").set(PointCloud_);
 }
 }
 

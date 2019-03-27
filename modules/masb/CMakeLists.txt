@@ -5,6 +5,7 @@ add_library(masb_nodes STATIC
   Ma_Segmentation_processing.cpp
   ExtractCandidatePt.cpp
   MaPt_in_oneTrace.cpp
+  ConnectCandidatePt.cpp
 )
 target_link_libraries( masb_nodes
   geoflow-core

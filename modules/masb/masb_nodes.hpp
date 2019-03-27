@@ -7,6 +7,7 @@
 #include "Ma_Segmentation_processing.h"
 #include "ExtractCandidatePt.h"
 #include "MaPt_in_oneTrace.h"
+#include "ConnectCandidatePt.h"
 
 
 namespace geoflow::nodes::mat {
@@ -198,9 +199,21 @@ namespace geoflow::nodes::mat {
       using Node::Node;
       void init() {
           add_output("candidate_r", TT_point_collection);
-          add_output("directon_vis", TT_line_string_collection);
           add_output("directon", TT_vec3f);
           add_output("seg_id", TT_vec1i);
+      }
+      void process();
+  };
+
+  class ReadCandidatePtWithBisecNode :public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_output("candidate_r", TT_point_collection);
+          add_output("directon", TT_vec3f);
+          add_output("seg_id", TT_vec1i);
+          add_output("bisector_p", TT_vec3f);
+          add_output("bisector_q", TT_vec3f);
       }
       void process();
   };
@@ -209,7 +222,35 @@ namespace geoflow::nodes::mat {
   public:
       //masb::_pram params;
       using Node::Node;
-      void init() {}
+      void init() {
+          add_input("pointCloud", TT_point_collection);
+          add_input("candidate", TT_point_collection);
+          add_input("directon", TT_vec3f);
+          add_input("seg_id", TT_vec1i);
+          add_input("bisector_p", TT_vec3f);
+          add_input("bisector_q", TT_vec3f);
+          add_output("bisector_p_vis", TT_line_string_collection);
+          add_output("bisector_q_vis", TT_line_string_collection);
+          add_output("directon_vis", TT_line_string_collection);
+          add_output("directon2_vis", TT_line_string_collection);
+          add_output("filter", TT_vec1i);
+      }
+      void process();
+  };
+  class PLYLoaderNode :public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/OriginalPointCloud.ply");
+          add_param("thinning_factor", (int)50);
+
+          add_output("PointCloud", TT_point_collection);
+      }
+
+      void gui() {
+          ImGui::InputText("filepath", &param<std::string>("filepath"));
+          ImGui::SliderInt("thinning_factor", &param<int>("thinning_factor"), 1, 200);
+      }
       void process();
   };
 

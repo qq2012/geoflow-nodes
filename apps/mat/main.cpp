@@ -21,9 +21,13 @@ int main(int ac, const char * av[])
     NodeRegister mat = gfn::mat::create_register();
     NodeRegister las = gfn::las::create_register();
 
-    auto readcandidatept_node = N.create_node(mat, "ReadCandidatePtNode", { 400,100 });
+    //auto las_loader_node = N.create_node(las, "LASLoader", { 100,100 });
+    auto PLY_loaderNode = N.create_node(mat, "PLYLoaderNode", { 100,100 });
+    //auto readcandidatept_node = N.create_node(mat, "ReadCandidatePtNode", { 400,100 });
+    auto readWithBisec = N.create_node(mat, "ReadCandidatePtWithBisecNode", { 400,100 });
+    auto connect_noed = N.create_node(mat, "ConnectCandidatePtNode", { 600,100 });
     /*
-    auto las_loader_node = N.create_node(las, "LASLoader", { 100,100 });
+    las_loader_node->set_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/CA_pressure_ridge_dedup.las");
     auto normals_node = N.create_node(mat, "ComputeNormalsNode", { 400,0 });
     auto mat_node = N.create_node(mat, "ComputeMedialAxisNode", { 400,200 });
     auto geometry_node = N.create_node(mat, "MaGeometryNode", { 700,50 });
