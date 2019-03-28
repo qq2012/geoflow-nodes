@@ -25,7 +25,13 @@ int main(int ac, const char * av[])
     auto PLY_loaderNode = N.create_node(mat, "PLYLoaderNode", { 100,100 });
     //auto readcandidatept_node = N.create_node(mat, "ReadCandidatePtNode", { 400,100 });
     auto readWithBisec = N.create_node(mat, "ReadCandidatePtWithBisecNode", { 400,100 });
-    auto connect_noed = N.create_node(mat, "ConnectCandidatePtNode", { 600,100 });
+    auto connect_noed = N.create_node(mat, "ConnectCandidatePtNode", { 800,100 });
+    connect(readWithBisec->output("candidate_r"), connect_noed->input("candidate"));
+    connect(readWithBisec->output("directon"), connect_noed->input("directon"));
+    connect(readWithBisec->output("seg_id"), connect_noed->input("seg_id"));
+    connect(readWithBisec->output("bisector_p"), connect_noed->input("bisector_p"));
+    connect(readWithBisec->output("bisector_q"), connect_noed->input("bisector_q"));
+
     /*
     las_loader_node->set_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/CA_pressure_ridge_dedup.las");
     auto normals_node = N.create_node(mat, "ComputeNormalsNode", { 400,0 });

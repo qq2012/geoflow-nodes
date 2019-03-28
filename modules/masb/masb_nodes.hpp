@@ -229,11 +229,16 @@ namespace geoflow::nodes::mat {
           add_input("seg_id", TT_vec1i);
           add_input("bisector_p", TT_vec3f);
           add_input("bisector_q", TT_vec3f);
+
+          add_output("filter", TT_vec1i);
+          add_output("ridge", TT_line_string_collection);
+          add_output("ridgeId", TT_vec1i);
+
           add_output("bisector_p_vis", TT_line_string_collection);
           add_output("bisector_q_vis", TT_line_string_collection);
           add_output("directon_vis", TT_line_string_collection);
           add_output("directon2_vis", TT_line_string_collection);
-          add_output("filter", TT_vec1i);
+          
       }
       void process();
   };

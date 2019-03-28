@@ -470,7 +470,7 @@ void ReadCandidatePtWithBisecNode::process() {
 
     std::ifstream infile;
     std::string filepath;
-    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
+    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
     infile.open(filepath);
     std::string dummyLine;
     int size;
@@ -576,8 +576,29 @@ void ConnectCandidatePtNode::process() {
     for (auto id : seg_id_vec1i) {
         seg_id.push_back(id);
     }
+    masb::intList filter;
+    ridge::segment segmentList;
+    masb::intList idList;
+    ridge::connectCandidatePt8MST(pointCloud, candidate_r, seg_id,
+        filter, segmentList, idList);
 
-    auto filter = ridge::connectCandidatePtProcess(pointCloud, candidate_r, seg_id, directon, bisector_p, bisector_q);
+    vec1i filter_;
+    filter_.reserve(filter.size());
+    for (auto i : filter)
+        filter_.push_back(i);
+
+    LineStringCollection segment_vis_;
+    segment_vis_.reserve(segmentList.size());
+    for (auto &s : segmentList) {
+        LineString tmp;
+        tmp.push_back({ s.first[0],s.first[1],s.first[2] });
+        tmp.push_back({ s.second[0],s.second[1] ,s.second[2] });
+        segment_vis_.push_back(tmp);
+    }
+    vec1i idList_;
+    idList_.reserve(idList.size());
+    for (auto i : idList)
+        idList_.push_back(i);
 
     LineStringCollection directon_vis_;
     LineStringCollection directon2_vis_;
@@ -608,16 +629,19 @@ void ConnectCandidatePtNode::process() {
         bisec_p_vis_.push_back(tmp_bp);
         bisec_q_vis_.push_back(tmp_bq);
     }
+    output("filter").set(filter_);
+    output("ridge").set(segment_vis_);
+    output("ridgeId").set(idList_);
     output("directon_vis").set(directon_vis_);//directon_vis
     output("directon2_vis").set(directon2_vis_);
     output("bisector_p_vis").set(bisec_p_vis_);
     output("bisector_q_vis").set(bisec_q_vis_);
-    output("filter").set(filter);
+    
 }
 void PLYLoaderNode::process() {
     int k = param<int>("thinning_factor");
     std::string filepath = param<std::string>("filepath");
-
+    std::cout << "start load point cloud\n";
     std::ifstream infile;
     infile.open(filepath);
     std::string dummyLine;
@@ -625,7 +649,7 @@ void PLYLoaderNode::process() {
     int i = 0;
     while (i < 8) {
         std::getline(infile, dummyLine);
-        std::cout << i << "--" << dummyLine << std::endl;
+        //std::cout << i << "--" << dummyLine << std::endl;
         if (i == 3) {
             auto elems = masb::split2nums(dummyLine, ' ');
             size = ::atof(elems[2].c_str());

@@ -5,34 +5,39 @@
 #include <fstream>
 
 struct VertexId { int idx; };
+using namespace boost;
+//typedef adjacency_list < vecS, vecS, undirectedS, no_property, 
+//                                property < edge_weight_t, float > > Graph;
+typedef property<boost::edge_weight_t, float> EdgeWeightProperty;
+typedef property<boost::vertex_index_t, size_t> Vertex_Id;
+typedef adjacency_list<vecS, vecS, undirectedS, Vertex_Id, EdgeWeightProperty> Graph;
+typedef graph_traits < Graph >::edge_descriptor Edge;
+typedef graph_traits < Graph >::vertex_descriptor Vertex;//VertexDescriptor
+typedef std::pair<int, int> E;
+typedef boost::graph_traits<Graph>::vertex_iterator     VertexIterator;
+// edge iterator (from which you can traverse all the edges of a graph)
+//typedef boost::graph_traits<Graph>::edge_iterator       EdgeIterator;
 
-
-masb::intList ridge::connectCandidatePtProcess(masb::PointList &pointCloud,masb::PointList &candidate, 
-    masb::intList &seg_id,masb::VectorList &direction, 
-    masb::VectorList &bisec_p, masb::VectorList &bisec_q) {
-
-    masb::intList filter;
+void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList &candidate,
+    masb::intList &seg_id, masb::intList &filter, ridge::segment &segmentList, masb::intList &idList){
+    
+    float filter_thresh = 5.0;
 
     kdtree2::KDTree* pc_kdtree;
-    pc_kdtree = new kdtree2::KDTree(pointCloud, true);
+    pc_kdtree = new kdtree2::KDTree(PointCloud, true);
     pc_kdtree->sort_results = true;
     std::vector<float> dis_list; dis_list.reserve(candidate.size());
     for (int i = candidate.size() - 1; i >= 0; i--) {
         kdtree2::KDTreeResultVector neighbours;
         pc_kdtree->n_nearest(candidate[i], 1, neighbours);
         dis_list.push_back(neighbours[0].dis);
-        if (neighbours[0].dis > 30.0) {
-            filter.push_back(3);
-            /*
+        if (neighbours[0].dis > filter_thresh) {
+            filter.push_back(0);
             candidate.erase(candidate.begin() + i);
-            seg_id.erase(seg_id.begin() + 1);
-            direction.erase(direction.begin() + i);
-            bisec_p.erase(bisec_p.begin() + i);
-            bisec_q.erase(bisec_q.begin() + i);
-            */
+            seg_id.erase(seg_id.begin() + i);
         }
         else
-            filter.push_back(0);
+            filter.push_back(1);
     }
     //dis_list;
 
@@ -42,69 +47,81 @@ masb::intList ridge::connectCandidatePtProcess(masb::PointList &pointCloud,masb:
     //for (const auto& e : seg_frequency)
     //    std::cout << "Element " << e.first 
     //     << " encountered " << e.second << " times\n";
+
     for (const auto& e : seg_frequency) {
-        auto cur_id = e.first;
+        auto cur_sheet = e.first;
         auto cur_size = e.second;
         masb::PointList cur_candidate;
         cur_candidate.reserve(cur_size);
         for (int i = 0; i < seg_id.size(); i++) {
-            if (seg_id[i] == cur_id) {
+            if (seg_id[i] == cur_sheet) {
                 cur_candidate.push_back(candidate[i]);
             }
         }
 
-        using namespace boost;
-        //typedef adjacency_list < vecS, vecS, undirectedS, no_property, 
-        //                                property < edge_weight_t, float > > Graph;
-        typedef property<boost::edge_weight_t, float> EdgeWeightProperty;
-        typedef adjacency_list<vecS, vecS, undirectedS, VertexId, EdgeWeightProperty> Graph;
-        typedef graph_traits < Graph >::edge_descriptor Edge;
-        typedef graph_traits < Graph >::vertex_descriptor Vertex;//VertexDescriptor
-        typedef std::pair<int, int> E;
+        if (cur_candidate.size() != cur_size)
+            std::cout << "Error" << std::endl;
 
-        int num_nodes = 3;
-        E edge_array[] = { E(0, 1), E(0, 2), E(1, 2) };
-
-        auto w1 = Vrui::Geometry::sqrDist(cur_candidate[0], cur_candidate[1]);
-        auto w2 = Vrui::Geometry::sqrDist(cur_candidate[0], cur_candidate[2]);
-        auto w3 = Vrui::Geometry::sqrDist(cur_candidate[1], cur_candidate[2]);
-        float weights[] = { w1,w2,w3 };
-
+        /*
+        //example
+        const int num_nodes = 5;
+        E edge_array[] = { E(0, 2), E(1, 3), E(1, 4), E(2, 1), E(2, 3),
+          E(3, 4), E(4, 0), E(4, 1)
+        };
+        int weights[] = { 1, 1, 2, 7, 3, 1, 1, 1 };
         std::size_t num_edges = sizeof(edge_array) / sizeof(E);
-        //std::size_t num_edges = num_nodes * (num_nodes - 1) / 2;
-
-#if defined(BOOST_MSVC) && BOOST_MSVC <= 1300
-        Graph g(num_nodes);
-        property_map<Graph, edge_weight_t>::type weightmap = get(edge_weight, g);
-        for (std::size_t j = 0; j < num_edges; ++j) {
-            Edge e; bool inserted;
-            boost::tie(e, inserted) = add_edge(edge_array[j].first, edge_array[j].second, g);
-            weightmap[e] = weights[j];
-        }
-#else
         Graph g(edge_array, edge_array + num_edges, weights, num_nodes);
-#endif
-        
-        //modify graph
-        for (int i = 0; i < num_nodes; i++) {
-            for (int j = i + 1; j < num_nodes; j++) {
-                if ((i == 0 && j == 1) || (i == 0 && j == 2) || (i == 1 && j == 2))
-                    continue;
-                VertexId vi, vj;
-                vi.idx = i;
-                vj.idx = j;
-                Vertex vdi = boost::add_vertex(vi, g);
-                Vertex vdj = boost::add_vertex(vj, g);
+        */
+        /*
+        //initialize graph  -- wrong??why????????????????????????
+        cur_size = 20;
+        Graph g;
+        for (int i = 0; i < cur_size; i++) {
+            Vertex vdi = boost::add_vertex(Vertex_Id(i), g);
+        }
+        if (boost::num_vertices(g) != cur_size)
+            std::cout << "error in adding vertices" << std::endl;
+
+        std::pair<VertexIterator, VertexIterator> v = boost::vertices(g);
+        int i = 0;
+        for (VertexIterator vi = v.first; vi != v.second; ++vi) {
+            //vi.first -- begin ; vi.second -- end;
+            Vertex vdi = *vi;
+            int j = i + 1;
+            for (VertexIterator vj = vi+1; vj != v.second; ++vj) {
+                Vertex vdj = *vj;
                 auto wij = Vrui::Geometry::sqrDist(cur_candidate[i], cur_candidate[j]);
                 boost::add_edge(vdi, vdi, EdgeWeightProperty(wij), g);
+                //std::cout << "add edge " << i << " -- " << j << std::endl;
+                j++;
             }
-        };
-
+            i++;
+        }
+        if (boost::num_edges(g) != cur_size * (cur_size - 1) / 2)
+            std::cout << "error in adding edge" << std::endl;
+        */
+        std::cout << "start connect ridge " << cur_sheet << std::endl;
+        //cur_size = 200;
+        Graph g(cur_size);
+        size_t num_edges = cur_size * (cur_size - 1) / 2;
+        property_map<Graph, edge_weight_t>::type weightmap = get(edge_weight, g);
+        //property_map<Graph, vertex_index_t>::type VertexIndexMap = get(vertex_index, g);
+        for (size_t i = 0; i < cur_size; ++i) {
+            for (size_t j = i + 1; j < cur_size; ++j) {
+                E ea = E(i, j);
+                Edge e; bool inserted;
+                boost::tie(e, inserted) = add_edge(ea.first, ea.second, g);
+                weightmap[e] =  Vrui::Geometry::sqrDist(cur_candidate[i], cur_candidate[j]);
+            }
+        }
+        
         property_map < Graph, edge_weight_t >::type weight = get(edge_weight, g);
+        //property_map < Graph, vertex_index_t >::type index = get(vertex_index, g);
         std::vector < Edge > spanning_tree;
 
-        kruskal_minimum_spanning_tree(g, std::back_inserter(spanning_tree));
-
+        auto tmp = std::back_inserter(spanning_tree);
+        kruskal_minimum_spanning_tree(g, tmp);
+        /*
         std::cout << "Print the edges in the MST:" << std::endl;
         for (std::vector < Edge >::iterator ei = spanning_tree.begin();
             ei != spanning_tree.end(); ++ei) {
@@ -112,9 +129,22 @@ masb::intList ridge::connectCandidatePtProcess(masb::PointList &pointCloud,masb:
                 << " with weight of " << weight[*ei]
                 << std::endl;
         }
+        Print the edges in the MST:
+        0 <--> 2 with weight of 1
+        3 <--> 4 with weight of 1
+        4 <--> 0 with weight of 1
+        1 <--> 3 with weight of 1
+        */
+        for (std::vector < Edge >::iterator ei = spanning_tree.begin();
+            ei != spanning_tree.end(); ++ei) {
+            auto idx_p = source(*ei, g);
+            auto idx_q = target(*ei, g);
+            masb::Point p = cur_candidate[idx_p];
+            masb::Point q = cur_candidate[idx_q];
+            segmentList.push_back(ridge::PointPair(p, q));
+        }
+        masb::intList temp;
+        temp.resize(cur_size - 1, cur_sheet);
+        idList.insert(idList.end(), temp.begin(), temp.end());
     }
-
-    return filter;
-
-
 }
