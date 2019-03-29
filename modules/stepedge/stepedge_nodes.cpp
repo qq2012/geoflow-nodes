@@ -41,7 +41,6 @@ vertex get_normal(vertex v0, vertex v1, vertex v2) {
 
 // interval list
 #include "interval.hpp"
-#include "line_regulariser.hpp"
 
 #include <unordered_set>
 #include <stack>
@@ -270,11 +269,8 @@ void Ring2SegmentsNode::process() {
   output("ring_idx").set(ring_idx);
 }
 
-void PolygonExtruderNode::process(){
-  auto polygons = input("polygons").get<LinearRingCollection>();
+void PointCloudMeanZNode::process(){
   auto point_clouds = input("point_clouds").get<std::vector<PointCollection>>();
-
-  if(polygons.size()!=point_clouds.size()) return;
 
   vec1f heights;
   for (auto& point_cloud : point_clouds) {
@@ -284,8 +280,86 @@ void PolygonExtruderNode::process(){
     }
     heights.push_back(sum_elevation/point_cloud.size());
   }
-  output("polygons_extruded").set(polygons);
   output("heights").set(heights);
+}
+
+void PolygonExtruderNode::process() {
+  auto rings = input("polygons").get<LinearRingCollection>();
+  auto heights = input("heights").get<vec1f>();
+
+  LinearRingCollection rings_3d;
+  vec1i surf_type;
+  for (size_t i=0; i<rings.size(); ++i) {
+    auto h = heights[i];
+    //floor
+    rings_3d.push_back(rings[i]);
+    surf_type.push_back(0);
+    //roof
+    LinearRing r = rings[i];
+    for (auto& p : r) p[2] = h;
+    rings_3d.push_back(r);
+    surf_type.push_back(2);
+    //walls
+    size_t j_prev = r.size()-1;
+    for (size_t j=0; j<r.size(); ++j) {
+      LinearRing wall;
+      wall.push_back(rings[i][j]);
+      wall.push_back(rings[i][j_prev]);
+      auto ha = r[j_prev];
+      auto hb = r[j];
+      wall.push_back(ha);
+      wall.push_back(hb);
+      surf_type.push_back(1);
+      rings_3d.push_back(wall);
+      j_prev=j;
+    }
+  }
+
+  output("rings_3d").set(rings_3d);
+  output("ring_types").set(surf_type);
+}
+
+inline arr3f grow(const arr3f& p_, const arr3f& q_, const arr3f& r_, const float& extension) {
+  auto p = SCK::Point_2(p_[0], p_[1]);
+  auto q = SCK::Point_2(q_[0], q_[1]);
+  auto r = SCK::Point_2(r_[0], r_[1]);
+
+  auto pq = q-p;
+  pq = pq/pq.squared_length();
+  auto pr = r-p;
+  pr = pr/pr.squared_length();
+  SCK::Vector_2 v;
+  if (CGAL::collinear(p,q,r)) {
+    v = SCK::Vector_2(pq.y(), -pq.x());
+  } else {
+    v = pq+pr;
+    v = v/v.squared_length();
+  }
+  auto np = p + v*extension;
+  return {float(np.x()), float(np.y()), 0};
+}
+
+void PolygonGrowerNode::process(){
+  auto rings = input("rings").get<LinearRingCollection>();
+  auto extension = param<float>("extension");
+
+  LinearRingCollection new_rings;
+ 
+  for (auto& ring : rings) {
+    size_t rsize = ring.size();
+    LinearRing new_ring;
+    for (size_t i=0; i<rsize; ++i) {
+      auto& p = ring[i];
+      auto& p_prev = ring[(i-1) % rsize];
+      auto& p_next = ring[(i+1) % rsize];
+      new_ring.push_back(
+        grow(p, p_prev, p_next, extension)
+      );
+    }
+    new_rings.push_back(new_ring);
+  }
+
+  output("rings").set(new_rings);
 }
 
 void Arr2LinearRingsNode::process(){
@@ -294,7 +368,11 @@ void Arr2LinearRingsNode::process(){
   LinearRingCollection linear_rings;
   AttributeMap attributes;
   for (auto face: arr.face_handles()){
-    if(face->data().in_footprint) {
+    if(
+      !(param<bool>("only_in_footprint") && !face->data().in_footprint)
+      &&
+      !(face->is_fictitious() || face->is_unbounded())
+      ) {
       vec2f polygon;
       arrangementface_to_polygon(face, polygon);
       vec3f polygon3d;
@@ -541,17 +619,17 @@ void arr2segments(Face_handle& face, LineStringCollection& segments) {
     he = he->next();
     if (he==first) break;
   }
-  segments.push_back({
-    {
-      float(CGAL::to_double(he->source()->point().x())),
-      float(CGAL::to_double(he->source()->point().y())),
-      0
-    },{
-      float(CGAL::to_double(he->target()->point().x())),
-      float(CGAL::to_double(he->target()->point().y())),
-      0
-    }
-  });
+  // segments.push_back({
+  //   {
+  //     float(CGAL::to_double(he->source()->point().x())),
+  //     float(CGAL::to_double(he->source()->point().y())),
+  //     0
+  //   },{
+  //     float(CGAL::to_double(he->target()->point().x())),
+  //     float(CGAL::to_double(he->target()->point().y())),
+  //     0
+  //   }
+  // });
 }
 
 void BuildArrangementNode::process(){
@@ -578,7 +656,7 @@ void LinearRingtoRingsNode::process(){
   output("linear_rings").set(lrc);
 }
 
-Polygon_2 arr_cell2polygon(Face_handle& fh) {
+Polygon_2 arr_cell2polygon(const Face_handle& fh) {
   Polygon_2 poly;
   auto he = fh->outer_ccb();
   auto first = he;
@@ -588,11 +666,292 @@ Polygon_2 arr_cell2polygon(Face_handle& fh) {
   } while (he!=first);
   return poly;
 }
-void arr_process(Arrangement_2& arr, const bool& flood_unsegmented, const bool& dissolve_edges, const bool& dissolve_stepedges, const float& step_height_threshold) {
+
+std::tuple<size_t, size_t, size_t> arr_checkzone(Arrangement_2& arr, Segment_2 segment, Arrangement_2::Face_handle& face) {
+  std::vector<CGAL::Object> zone_elems;
+  
+  Arrangement_2::Halfedge_handle edge;
+  Arrangement_2::Vertex_handle vertex;
+  CGAL::zone(arr, segment, std::back_inserter(zone_elems));
+  // std::cout << "Zone has " << zone_elems.size() << " elems\n";
+  size_t v_cnt=0, f_cnt=0, e_cnt=0;
+  for ( auto& object : zone_elems ) {
+    if ( assign(face, object) ) {
+      // std::cout << "Zone face, segid= " << face->data().segid << "\n";
+      ++f_cnt;
+    } else if ( assign(edge, object) ) {
+      // std::cout << "Zone edge\n";
+      ++e_cnt;
+    } else if ( assign(vertex, object) ) {
+      // std::cout << "Zone vertex\n";
+      ++v_cnt;
+    }
+  }
+  return std::make_tuple(v_cnt, e_cnt, f_cnt);
+}
+
+void BuildArrFromRingsExactNode::arr_snapclean_from_fp(Arrangement_2& arr) {
+  typedef Arrangement_2::Traits_2 AT;
+  typedef std::variant<Arrangement_2::Vertex_handle, Arrangement_2::Halfedge_handle> Candidate;
+  typedef std::unordered_map<Arrangement_2::Vertex_handle, std::vector<Candidate>> CandidateMap;
+  float snap_dist = param<float>("snap_dist")*param<float>("snap_dist");
+
+  PointCollection snap_to_v, snap_v;
+  SegmentCollection snap_to_e;
+
+  CandidateMap candidates;
+  std::vector<Arrangement_2::Vertex_handle> vertices_to_snap;
+  // collect non fp vertices
+  for (auto& v :  arr.vertex_handles()){
+    auto vhe = v->incident_halfedges();
+    auto vdone = vhe;
+    // check if v is not on the fp boundary
+    bool v_is_on_fp = false;
+    do {
+      v_is_on_fp |= (!vhe->face()->data().in_footprint) || (!vhe->twin()->face()->data().in_footprint);
+    } while (++vhe!=vdone);
+    if (v_is_on_fp)
+      vertices_to_snap.push_back(v);
+  }
+  // find candidate vertices/edges to snap to for each vertex
+  auto obs = Snap_observer(arr);
+
+  for (auto& v : vertices_to_snap) {
+    auto vhe = v->incident_halfedges();
+    auto vdone = vhe;
+    do { //for all incident faces f of v
+      auto f = vhe->face();
+      if(f->data().in_footprint) {
+        auto fhe = f->outer_ccb();
+        auto fdone = fhe;
+        do { //for all edges in outer_ccb of f
+          // only care if one side of the edge is outside the fp, ie the edge is part of the fp
+          if (fhe->source() == v || fhe->target() == v) continue;
+
+          bool check_this_edge;
+          // both sides of the edge must be in the fp
+          check_this_edge = (fhe->face()->data().in_footprint) && (fhe->twin()->face()->data().in_footprint);
+
+          if( check_this_edge ) {
+            // compute distance and compare to threshold
+            auto s = AT::Segment_2(fhe->source()->point(), fhe->target()->point());
+            if (snap_dist > CGAL::squared_distance(v->point(), s)) {
+              candidates[v].push_back(fhe);
+              snap_to_e.push_back({
+                arr3f{float(CGAL::to_double(s.source().x())), float(CGAL::to_double(s.source().y())), 0},
+                arr3f{float(CGAL::to_double(s.target().x())), float(CGAL::to_double(s.target().y())), 0}
+              });
+              snap_v.push_back({float(CGAL::to_double(v->point().x())), float(CGAL::to_double(v->point().y())), 0});
+            }
+            if (snap_dist > CGAL::squared_distance(v->point(), fhe->source()->point())) {
+              candidates[v].push_back(fhe->source());
+              snap_to_v.push_back({float(CGAL::to_double(s.source().x())), float(CGAL::to_double(s.source().y())), 0});
+              snap_v.push_back({float(CGAL::to_double(v->point().x())), float(CGAL::to_double(v->point().y())), 0});
+            }
+          }
+        } while (++fhe!=fdone);
+      }
+    } while (++vhe!=vdone);    
+
+    // perform snapping for this vertex
+    if (candidates.count(v) && !param<bool>("snap_detect_only")) {
+      auto& cvec = candidates[v];
+      // std::cout << cvec.size() << "\n";
+      // merge v with an edge
+      if (cvec.size() == 1) {
+        if(auto he_ptr = std::get_if<Arrangement_2::Halfedge_handle>(&cvec[0])) {
+
+          auto& source = (*he_ptr)->source()->point();
+          auto& target = (*he_ptr)->target()->point();
+          auto line = AT::Line_2(source, target);
+          auto split_point = line.projection(v->point());
+          
+          // check zone to target edge
+          auto blocking_segment = AT::Segment_2(split_point, v->point());
+          Arrangement_2::Face_handle face;
+          auto [v_cnt, e_cnt, f_cnt] = arr_checkzone(arr, blocking_segment, face);
+          bool empty_zone = (v_cnt==1 && e_cnt==1) && f_cnt==1;
+
+          if (empty_zone && face->data().in_footprint) {
+            // split
+            if (CGAL::do_intersect(AT::Segment_2(source, target), split_point)) {
+              AT::Segment_2 s1(source, split_point);
+              AT::Segment_2 s2(split_point, target);
+              auto e_split = arr.split_edge((*he_ptr), s1, s2);
+              auto v_split = e_split->target();
+
+              // create new edge to split_vertex
+              auto he_fix = arr.insert_at_vertices(blocking_segment, v_split, v);
+            }
+          }
+        }
+      } else if (cvec.size() > 1) {
+        // pick the 1st vertex
+        bool found_vertex=false;
+        Arrangement_2::Vertex_handle v_target;
+        for (auto& obj : cvec) {
+          if(auto v_ptr = std::get_if<Arrangement_2::Vertex_handle>(&obj)) {
+            v_target = *v_ptr;
+            found_vertex = true;
+            break;
+          }
+        }
+        if (found_vertex) {
+          auto blocking_segment = AT::Segment_2(v_target->point(), v->point());
+          Arrangement_2::Face_handle face;
+          auto [v_cnt, e_cnt, f_cnt] = arr_checkzone(arr, blocking_segment, face);
+          bool empty_zone = (v_cnt==2 && e_cnt==0) && f_cnt==1;
+          if (empty_zone) {
+            // create new edge to target vertex
+            if (face->data().segid==0)
+              auto he_fix = arr.insert_at_vertices(blocking_segment, v_target, v);
+          }
+        }
+      }
+    }
+  }
+
+  output("snap_fp_v").set(snap_v);
+  output("snap_fp_to_v").set(snap_to_v);
+  output("snap_fp_to_e").set(snap_to_e);
+}
+void BuildArrFromRingsExactNode::arr_snapclean(Arrangement_2& arr) {
+  typedef Arrangement_2::Traits_2 AT;
+  typedef std::variant<Arrangement_2::Vertex_handle, Arrangement_2::Halfedge_handle> Candidate;
+  typedef std::unordered_map<Arrangement_2::Vertex_handle, std::map<double,Candidate>> CandidateMap;
+  float snap_dist = param<float>("snap_dist")*param<float>("snap_dist");
+
+  PointCollection snap_to_v, snap_v;
+  SegmentCollection snap_to_e;
+
+  CandidateMap candidates;
+  std::vector<Arrangement_2::Vertex_handle> vertices_to_snap;
+  // collect non fp vertices
+  for (auto& v :  arr.vertex_handles()){
+    auto vhe = v->incident_halfedges();
+    auto vdone = vhe;
+    // check if v is not on the fp boundary
+    bool on_fp = false;
+    do {
+      on_fp |= (!vhe->face()->data().in_footprint) || (!vhe->twin()->face()->data().in_footprint);
+    } while (++vhe!=vdone);
+    if (!on_fp)
+      vertices_to_snap.push_back(v);
+  }
+  // find candidate vertices/edges to snap to for each vertex
+  auto obs = Snap_observer(arr);
+
+  for (auto& v : vertices_to_snap) {
+    auto vhe = v->incident_halfedges();
+    auto vdone = vhe;
+    do { //for all incident faces f of v
+      auto f = vhe->face();
+      if(f->data().in_footprint) {
+        auto fhe = f->outer_ccb();
+        auto fdone = fhe;
+        do { //for all edges in outer_ccb of f
+          // only care if one side of the edge is outside the fp, ie the edge is part of the fp
+          bool check_this_edge;
+          // one side of the edge must be outside the fp
+          check_this_edge = (!fhe->face()->data().in_footprint) || (!fhe->twin()->face()->data().in_footprint);
+
+          if( check_this_edge ) {
+            // compute distance and compare to threshold
+            auto s = AT::Segment_2(fhe->source()->point(), fhe->target()->point());
+            double d = CGAL::to_double(CGAL::squared_distance(v->point(), s));
+            if (snap_dist > d) {
+              candidates[v][d] = fhe;
+              snap_to_e.push_back({
+                arr3f{float(CGAL::to_double(s.source().x())), float(CGAL::to_double(s.source().y())), 0},
+                arr3f{float(CGAL::to_double(s.target().x())), float(CGAL::to_double(s.target().y())), 0}
+              });
+              snap_v.push_back({float(CGAL::to_double(v->point().x())), float(CGAL::to_double(v->point().y())), 0});
+            }
+            d = CGAL::to_double(CGAL::squared_distance(v->point(), fhe->source()->point()));
+            if (snap_dist > d) {
+              candidates[v][d] = fhe->source();
+              snap_to_v.push_back({float(CGAL::to_double(s.source().x())), float(CGAL::to_double(s.source().y())), 0});
+              snap_v.push_back({float(CGAL::to_double(v->point().x())), float(CGAL::to_double(v->point().y())), 0});
+            }
+          }
+        } while (++fhe!=fdone);
+      }
+    } while (++vhe!=vdone);    
+
+    // perform snapping for this vertex
+    if (candidates.count(v) && !param<bool>("snap_detect_only")) {
+      auto& cvec = candidates[v];
+      // std::cout << cvec.size() << "\n";
+      // merge v with an edge
+      if (cvec.size() == 1) {
+        if(auto he_ptr = std::get_if<Arrangement_2::Halfedge_handle>(&(cvec.begin()->second))) {
+
+          auto& source = (*he_ptr)->source()->point();
+          auto& target = (*he_ptr)->target()->point();
+          auto line = AT::Line_2(source, target);
+          auto split_point = line.projection(v->point());
+          
+          // check zone to target edge
+          auto blocking_segment = AT::Segment_2(split_point, v->point());
+          Arrangement_2::Face_handle face;
+          auto [v_cnt, e_cnt, f_cnt] = arr_checkzone(arr, blocking_segment, face);
+          bool empty_zone = (v_cnt==1 && e_cnt==1) && f_cnt==1;
+
+          if (empty_zone && face->data().in_footprint && face->data().segid==0) {
+            // split
+            AT::Segment_2 s1(source, split_point);
+            AT::Segment_2 s2(split_point, target);
+            if(CGAL::do_intersect(AT::Segment_2(source, target), split_point)) {
+              auto e_split = arr.split_edge((*he_ptr), s1, s2);
+              auto v_split = e_split->target();
+
+              // create new edge to split_vertex
+              auto he_fix = arr.insert_at_vertices(blocking_segment, v_split, v);
+            }
+          }
+        }
+      } else if (cvec.size() > 1) {
+        // pick the 1st (closest) vertex
+        bool found_vertex=false;
+        Arrangement_2::Vertex_handle v_target;
+        for (auto& [d, obj] : cvec) {
+          if(auto v_ptr = std::get_if<Arrangement_2::Vertex_handle>(&obj)) {
+            v_target = *v_ptr;
+            found_vertex = true;
+            break;
+          }
+        }
+        if (found_vertex) {
+          auto blocking_segment = AT::Segment_2(v_target->point(), v->point());
+          Arrangement_2::Face_handle face;
+          auto [v_cnt, e_cnt, f_cnt] = arr_checkzone(arr, blocking_segment, face);
+          bool empty_zone = (v_cnt==2 && e_cnt==0) && f_cnt==1;
+          if (empty_zone) {
+            // create new edge to target vertex
+            if (face->data().segid==0)
+              auto he_fix = arr.insert_at_vertices(blocking_segment, v_target, v);
+          }
+        }
+      }
+    }
+  }
+
+  output("snap_v").set(snap_v);
+  output("snap_to_v").set(snap_to_v);
+  output("snap_to_e").set(snap_to_e);
+}
+
+void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
+
+  bool& flood_unsegmented = param<bool>("flood_to_unsegmented");
+  bool& dissolve_edges = param<bool>("dissolve_edges");
+  bool& dissolve_stepedges = param<bool>("dissolve_stepedges");
+  float& step_height_threshold = param<float>("step_height_threshold");
+
   if (flood_unsegmented) {
     std::map<float, Face_handle> face_map;
     for (auto& face : arr.face_handles()) {
-      if (face->data().segid!=0)
+      if (face->data().segid!=0 && face->data().in_footprint)
         face_map[face->data().elevation_avg] = face;
     }
     for (auto& kv : face_map) {
@@ -604,33 +963,26 @@ void arr_process(Arrangement_2& arr, const bool& flood_unsegmented, const bool& 
       while (!candidate_stack.empty()) {
         auto fh = candidate_stack.top(); candidate_stack.pop();
         auto he = fh->outer_ccb();
-        auto first = he;
+        auto done = he;
         do {
           // std::cout << &(*curr) << "\n";
           // ignore weird nullptrs (should not be possible...)
-          if (he==nullptr) break;
-          auto candidate = he->twin()->face();
-          if (candidate->data().segid == 0) {
-            candidate->data().segid = cur_segid;
-            candidate->data().elevation_avg = cur_elev;
-            candidate_stack.push(candidate);
+          if (he==nullptr) {
+            // std::cout << "nullptr detected!\n";
+            break;
+          }
+          // skip blocking edges (see snapping)
+          if (!he->data().blocks) {
+            auto candidate = he->twin()->face();
+            if (candidate->data().segid == 0 && candidate->data().in_footprint) {
+              candidate->data().segid = cur_segid;
+              candidate->data().elevation_avg = cur_elev;
+              candidate_stack.push(candidate);
+            }
           }
           he = he->next();
-        } while (he != first);
+        } while (he != done);
       }
-    }
-  }
-  //remove edges that have the same segid on both sides
-  if (dissolve_edges) {
-    std::vector<Halfedge_handle> to_remove;
-    for (auto he : arr.edge_handles()) {
-      auto d1 = he->face()->data();
-      auto d2 = he->twin()->face()->data();
-      if ((d1.segid == d2.segid )&& (d1.in_footprint && d2.in_footprint))
-        to_remove.push_back(he);
-    }
-    for (auto he : to_remove) {
-      arr.remove_edge(he);
     }
   }
   if (dissolve_stepedges) {
@@ -641,6 +993,7 @@ void arr_process(Arrangement_2& arr, const bool& flood_unsegmented, const bool& 
     for (auto& edge : edges) {
       auto f1 = edge->face();
       auto f2 = edge->twin()->face();
+
       if((f1->data().in_footprint && f2->data().in_footprint) && (f1->data().segid!=0 && f2->data().segid!=0)) {
         if(std::abs(f1->data().elevation_avg - f2->data().elevation_avg) < step_height_threshold){
           // should add face merge call back in face observer class...
@@ -657,6 +1010,35 @@ void arr_process(Arrangement_2& arr, const bool& flood_unsegmented, const bool& 
       }
     }
   }
+  //remove edges that have the same segid on both sides
+  if (dissolve_edges) {
+    std::vector<Halfedge_handle> to_remove;
+    for (auto he : arr.edge_handles()) {
+      auto d1 = he->face()->data();
+      auto d2 = he->twin()->face()->data();
+      if ((d1.segid == d2.segid ) && (d1.in_footprint && d2.in_footprint) && d1.segid != 0)
+        to_remove.push_back(he);
+    }
+    for (auto he : to_remove) {
+      arr.remove_edge(he);
+    }
+  }
+
+  // if (remove_low_holes) {
+  //   std::vector<Arrangement_2::Halfedge_handle> to_remove;
+  //   for (auto& face : arr.face_handles()) {
+  //     if (face->data().segid!=0 && face->data().in_footprint) {
+  //       for (auto iccb=face->holes_begin(); iccb != face->holes_end(); ++iccb) {
+  //         auto inner_face = (*iccb)->twin()->face();
+  //         if (inner_face->data().elevation_avg < face->data().elevation_avg)
+  //           to_remove.push_back(inner_face);
+  //       }
+  //     }
+  //   }
+  //   for (auto& f : to_remove) {
+  //     arr.rem
+  //   }
+  // }
 }
 
 void arr_filter_biggest_face(Arrangement_2& arr, const float& rel_area_thres) {
@@ -697,13 +1079,8 @@ std::pair<double, double> arr_measure_nosegid(Arrangement_2& arr) {
   }
   return std::make_pair(no_segid_area, no_segid_area/total_area);
 }
-// size_t get_percentile(const std::vector<linedect::Point>& points, const float& percentile) {
-//   std::sort(points.begin(), points.end(), [](linedect::Point& p1, linedect::Point& p2) {
-//     return p1.z() < p2.z();
-//   });
-//   return int(percentile*float(points.size()/2));
-// }
-void arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& points, const float& percentile) {
+
+void BuildArrFromRingsExactNode::arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& points) {
   typedef CGAL::Arr_walk_along_line_point_location<Arrangement_2> Point_location;
 
   std::unordered_map<Face_handle, std::vector<Point>> points_per_face;
@@ -714,23 +1091,50 @@ void arr_assign_pts_to_unsegmented(Arrangement_2& arr, std::vector<Point>& point
     auto obj = pl.locate( Point_2(p.x(), p.y()) );
     if (auto f = boost::get<Face_const_handle>(&obj)) {
       auto fh = arr.non_const_handle(*f);
-      if (fh->data().segid==0) {
+      if (fh->data().segid==0 && fh->data().in_footprint) {
         points_per_face[fh].push_back(p);
       }
     }
   }
   // find elevation percentile for each face
   for(auto& ppf : points_per_face) {
-    if (ppf.second.size()>0) {
+    double area = CGAL::to_double(CGAL::abs(arr_cell2polygon(ppf.first).area()));
+    if (ppf.second.size()/area > param<float>("extrude_mindensity")) {
       std::sort(ppf.second.begin(), ppf.second.end(), [](linedect::Point& p1, linedect::Point& p2) {
         return p1.z() < p2.z();
       });
-      auto pid = int(percentile*float(points.size()/2));
+      auto pid = int(param<float>("z_percentile")*float(ppf.second.size()-1));
       // auto pid = get_percentile(ppf.second, percentile);
       ppf.first->data().segid = -1;
       ppf.first->data().elevation_avg = ppf.second[pid].z();
     }
   }
+}
+
+void arr_insert_polygon(Arrangement_2& arr, const linereg::Polygon_2& polygon) {
+  auto tr = Traits_2();
+  auto compare = tr.compare_xy_2_object();
+
+  auto e = polygon.edges_begin();
+  bool source_was_left = (compare(e->source(),e->target()) == CGAL::SMALLER);
+  auto he = arr.insert_in_face_interior(*e, arr.unbounded_face());
+  auto v_prev = source_was_left ? he->target() : he->source();
+  auto first_he = he;
+  auto last_e = --polygon.edges_end();
+
+  ++e;
+  for (auto eit = e; eit != last_e; ++eit) {
+    // Traits_2::Compare_xy_2()(eit->source(),eit->target());
+    auto source_is_left = compare(eit->source(),eit->target()) == CGAL::SMALLER;
+    if (source_is_left)
+      he = arr.insert_from_left_vertex(*eit, v_prev);
+    else
+      he = arr.insert_from_right_vertex(*eit, v_prev);
+    v_prev = he->target();
+  }
+  auto v1 = first_he->next()==first_he->twin() ? first_he->target() : first_he->source();
+  auto v2 = he->next()==he->twin() ? he->target() : he->source();
+  arr.insert_at_vertices(*last_e, v1, v2);
 }
 
 void BuildArrFromRingsExactNode::process() {
@@ -741,7 +1145,7 @@ void BuildArrFromRingsExactNode::process() {
 
   auto fp_in = input("footprint");
   linereg::Polygon_2 footprint;
-  if (fp_in.connected_type == TT_any)
+  if (fp_in.connected_type == typeid(linereg::Polygon_2))
     footprint = fp_in.get<linereg::Polygon_2>();
   else {
     auto& lr = fp_in.get<LinearRing&>();
@@ -754,6 +1158,7 @@ void BuildArrFromRingsExactNode::process() {
   {
     Face_index_observer obs (arr_base, true, 0, 0);
     insert(arr_base, footprint.edges_begin(), footprint.edges_end());
+    // arr_insert_polygon(arr_base, footprint);
     // insert_non_intersecting_curves(arr_base, footprint.edges_begin(), footprint.edges_end());
     if (!footprint.is_simple()) {
       arr_filter_biggest_face(arr_base, param<float>("rel_area_thres"));
@@ -773,12 +1178,13 @@ void BuildArrFromRingsExactNode::process() {
         std::sort(points.begin(), points.end(), [](linedect::Point& p1, linedect::Point& p2) {
           return p1.z() < p2.z();
         });
-        auto elevation_id = int(param<float>("z_percentile")*float(points.size()));
+        int elevation_id = std::floor(param<float>("z_percentile")*float(points.size()-1));
 
         // wall_planes.push_back(std::make_pair(Plane(s.first, s.second, s.first+Vector(0,0,1)),0));
         Arrangement_2 arr;
         Face_index_observer obs (arr, false, plane_id, points[elevation_id].z());
         insert(arr, polygon.edges_begin(), polygon.edges_end());
+        // arr_insert_polygon(arr, polygon);
 
         if (!polygon.is_simple()) {
           arr_filter_biggest_face(arr, param<float>("rel_area_thres"));
@@ -791,19 +1197,19 @@ void BuildArrFromRingsExactNode::process() {
       }
     }
   }
-  // fix unsegmented face: 1) sort segments on elevation, from low to high, 2) starting with lowest segment grow into unsegmented neighbours
+  if(param<bool>("snap_clean")) arr_snapclean(arr_base);
+  if(param<bool>("snap_clean_fp")) arr_snapclean_from_fp(arr_base);
 
+  if(param<bool>("extrude_unsegmented") && points_per_plane.count(-1)) {
+    arr_assign_pts_to_unsegmented(arr_base, points_per_plane[-1]);
+  }
   auto nosegid_area = arr_measure_nosegid(arr_base);
-
-  if(param<bool>("extrude_unsegmented") && points_per_plane.count(-1))
-    arr_assign_pts_to_unsegmented(arr_base, points_per_plane[-1], param<float>("z_percentile"));
   
-  arr_process(arr_base, 
-    param<bool>("flood_to_unsegmented"), 
-    param<bool>("dissolve_edges"),
-    param<bool>("dissolve_stepedges"),
-    param<float>("step_height_threshold")
-  );
+  arr_process(arr_base);
+  
+  arr_is_valid = arr_base.is_valid();
+  vcount = arr_base.number_of_vertices();
+  ecount = arr_base.number_of_edges();
 
   LineStringCollection segments;
   for (auto& face: arr_base.face_handles()){
@@ -816,75 +1222,70 @@ void BuildArrFromRingsExactNode::process() {
   output("arrangement").set(arr_base);
 }
 
-void BuildArrFromRingsNode::process() {
-  // Set up vertex data (and buffer(s)) and attribute pointers
-  auto footprint = input("footprint").get<LinearRing>();
-  auto rings = input("rings").get<LinearRingCollection>();
-  // auto plane_idx = input("plane_idx").get<vec1i>();
-  auto points_per_plane = input("pts_per_roofplane").get<std::unordered_map<int, std::vector<Point>>>();
+// void BuildArrFromRingsNode::process() {
+//   // Set up vertex data (and buffer(s)) and attribute pointers
+//   auto footprint = input("footprint").get<LinearRing>();
+//   auto rings = input("rings").get<LinearRingCollection>();
+//   // auto plane_idx = input("plane_idx").get<vec1i>();
+//   auto points_per_plane = input("pts_per_roofplane").get<std::unordered_map<int, std::vector<Point>>>();
 
 
-  Arrangement_2 arr_base;
-  Polygon_2 cgal_footprint = ring_to_cgal_polygon(footprint);
-  if (cgal_footprint.is_simple()) {
+//   Arrangement_2 arr_base;
+//   Polygon_2 cgal_footprint = ring_to_cgal_polygon(footprint);
+//   if (cgal_footprint.is_simple()) {
       
-    // std::cout << "fp size=" <<footprint_pts.size() << "; " << footprint_pts[0].x() <<","<<footprint_pts[0].y()<<"\n";
-    {
-      Face_index_observer obs (arr_base, true, 0, 0);
-      // insert(arr_base, cgal_footprint.edges_begin(), cgal_footprint.edges_end());
-      insert_non_intersecting_curves(arr_base, cgal_footprint.edges_begin(), cgal_footprint.edges_end());
-    }
-    // insert step-edge lines
-    {
-      Arrangement_2 arr_overlay;
-      size_t i=0;
-      // NOTE: rings and points_per_plane must be aligned!! (matching length and order)
-      for (auto& kv : points_per_plane) {
-        auto& ring = rings[i++];
-        if (ring.size()>2) {
-          auto polygon = ring_to_cgal_polygon(ring);
-          if (polygon.is_simple()) {
-            auto plane_id = kv.first;
-            auto& points = kv.second;
-            std::sort(points.begin(), points.end(), [](linedect::Point& p1, linedect::Point& p2) {
-              return p1.z() < p2.z();
-            });
-            auto elevation_id = int(param<float>("z_percentile")*float(points.size()));
+//     // std::cout << "fp size=" <<footprint_pts.size() << "; " << footprint_pts[0].x() <<","<<footprint_pts[0].y()<<"\n";
+//     {
+//       Face_index_observer obs (arr_base, true, 0, 0);
+//       // insert(arr_base, cgal_footprint.edges_begin(), cgal_footprint.edges_end());
+//       insert_non_intersecting_curves(arr_base, cgal_footprint.edges_begin(), cgal_footprint.edges_end());
+//     }
+//     // insert step-edge lines
+//     {
+//       Arrangement_2 arr_overlay;
+//       size_t i=0;
+//       // NOTE: rings and points_per_plane must be aligned!! (matching length and order)
+//       for (auto& kv : points_per_plane) {
+//         auto& ring = rings[i++];
+//         if (ring.size()>2) {
+//           auto polygon = ring_to_cgal_polygon(ring);
+//           if (polygon.is_simple()) {
+//             auto plane_id = kv.first;
+//             auto& points = kv.second;
+//             std::sort(points.begin(), points.end(), [](linedect::Point& p1, linedect::Point& p2) {
+//               return p1.z() < p2.z();
+//             });
+//             auto elevation_id = int(param<float>("z_percentile")*float(points.size()));
 
-            // wall_planes.push_back(std::make_pair(Plane(s.first, s.second, s.first+Vector(0,0,1)),0));
-            Arrangement_2 arr;
-            Face_index_observer obs (arr, false, plane_id, points[elevation_id].z());
-            insert(arr, polygon.edges_begin(), polygon.edges_end());
+//             // wall_planes.push_back(std::make_pair(Plane(s.first, s.second, s.first+Vector(0,0,1)),0));
+//             Arrangement_2 arr;
+//             Face_index_observer obs (arr, false, plane_id, points[elevation_id].z());
+//             insert(arr, polygon.edges_begin(), polygon.edges_end());
 
-            Overlay_traits overlay_traits;
-            arr_overlay.clear();
-            overlay(arr_base, arr, arr_overlay, overlay_traits);
-            arr_base = arr_overlay;
-          } else std::cout << "This alpha ring is no longer simple after regularisation!\n";
-          // std::cout << "overlay success\n";
-          // std::cout << "facecount: " << arr_base.number_of_faces() << "\n\n";
-        }
-      }
-    }
-  } else {
-    std::cout << "This polygon is no longer simple after regularisation!\n";
-  }
-  // fix unsegmented face: 1) sort segments on elevation, from low to high, 2) starting with lowest segment grow into unsegmented neighbours
-  arr_process(arr_base, 
-    param<bool>("flood_to_unsegmented"), 
-    param<bool>("dissolve_edges"),
-    param<bool>("dissolve_stepedges"),
-    param<float>("step_height_threshold")
-  );
+//             Overlay_traits overlay_traits;
+//             arr_overlay.clear();
+//             overlay(arr_base, arr, arr_overlay, overlay_traits);
+//             arr_base = arr_overlay;
+//           } else std::cout << "This alpha ring is no longer simple after regularisation!\n";
+//           // std::cout << "overlay success\n";
+//           // std::cout << "facecount: " << arr_base.number_of_faces() << "\n\n";
+//         }
+//       }
+//     }
+//   } else {
+//     std::cout << "This polygon is no longer simple after regularisation!\n";
+//   }
+//   // fix unsegmented face: 1) sort segments on elevation, from low to high, 2) starting with lowest segment grow into unsegmented neighbours
+//   arr_process(arr_base);
 
-  LineStringCollection segments;
-  for (auto& face: arr_base.face_handles()){
-    if (face->data().in_footprint)
-      arr2segments(face, segments);
-  }
-  output("arr_segments").set(segments);
-  output("arrangement").set(arr_base);
-}
+//   LineStringCollection segments;
+//   for (auto& face: arr_base.face_handles()){
+//     if (face->data().in_footprint)
+//       arr2segments(face, segments);
+//   }
+//   output("arr_segments").set(segments);
+//   output("arrangement").set(arr_base);
+// }
 
 // inline int circindex(int i, size_t& N) {
 //   // https://codereview.stackexchange.com/questions/57923/index-into-array-as-if-it-is-circular
@@ -897,31 +1298,210 @@ void BuildArrFromRingsNode::process() {
 //   return (wasNegative) ? (N - offset) : (offset);
 // }
 
+inline void DetectLinesNode::detect_lines_ring_m1(linedect::LineDetector& LD, SegmentCollection& segments_out) {
+  LD.dist_thres = param<float>("dist_thres") * param<float>("dist_thres");
+  LD.N = param<int>("k");
+  auto& c_upper = param<int>("min_cnt_upper");
+  auto& c_lower = param<int>("min_cnt_lower");
+  std::vector<size_t> detected_regions;
+  size_t ringsize = LD.point_segment_idx.size();
+  RingSegMap ring_seg_map;
+  for (size_t i=c_upper; i>=c_lower; --i){
+    LD.min_segment_count = i;
+    auto new_regions = LD.detect();
+
+    // extract the new regions from the rring
+    std::vector<size_t> reset_ids;
+    for (const auto& cur_reg : new_regions) {
+      bool stitch = (cur_reg != LD.point_segment_idx.back()) && (cur_reg != LD.point_segment_idx[0]);
+
+      std::vector<std::vector<size_t>> other_regs(1);
+      size_t j=0;
+      for (auto& regid : LD.point_segment_idx) {
+        if (regid != cur_reg) {
+          other_regs.back().push_back(j);
+        } else {
+          other_regs.resize(other_regs.size()+1);
+        }
+        ++j;
+      }
+      if (stitch) {
+        auto& front = other_regs.front();
+        auto& back = other_regs.back();
+        front.insert(front.begin(), back.begin(), back.end());
+        other_regs.pop_back();
+      }
+      size_t largest = 0, largest_id;
+      j=0;
+      for (const auto& other_reg : other_regs) {
+        auto s = other_reg.size();
+        if (s >largest) {
+          largest=s;
+          largest_id=j;
+        } ++j;
+      }
+      auto idend = other_regs[largest_id].front()-1 % ringsize;
+      auto idstart = other_regs[largest_id].back()+1 % ringsize;
+      ring_seg_map[std::make_pair(idstart,idend)] = cur_reg;
+      reset_ids.push_back(idend);
+      reset_ids.push_back(idstart);
+    }
+    for (const auto& j : reset_ids) {
+      LD.point_segment_idx[j] = 0;
+    }
+  }
+  for (auto& [seg,rid] : ring_seg_map) {
+    segments_out.push_back(LD.project(seg.first, seg.second));
+  }
+}
+inline void DetectLinesNode::detect_lines(linedect::LineDetector& LD) {
+  LD.dist_thres = param<float>("dist_thres") * param<float>("dist_thres");
+  LD.N = param<int>("k");
+  auto& c_upper = param<int>("min_cnt_upper");
+  auto& c_lower = param<int>("min_cnt_lower");
+  for (size_t i=c_upper; i>=c_lower; --i){
+    LD.min_segment_count = i;
+    LD.detect();
+  }
+}
+inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, SegmentCollection& segments_out) {
+  LD.dist_thres = param<float>("dist_thres") * param<float>("dist_thres");
+  LD.N = param<int>("k");
+  auto& c_upper = param<int>("min_cnt_upper");
+  auto& c_lower = param<int>("min_cnt_lower");
+  for (size_t i=c_upper; i>=c_lower; --i){
+    LD.min_segment_count = i;
+    LD.detect();
+  }
+  size_t ringsize = LD.point_segment_idx.size();
+            // chain the detected lines, to ensure correct order
+  if (LD.segment_shapes.size()>1) {
+    std::vector<std::pair<size_t,size_t>> new_ring_ids;
+    bool start_seg = LD.point_segment_idx[0];
+    int prev_i=ringsize-1,
+      prev_seg=LD.point_segment_idx[prev_i], 
+      cur_seg, 
+      i_last_seg = -1;
+    bool perfect_aligned=false; // is the first point of the ring also the first point of a segment? If yes, we are perfectly aligned!
+    for( int i=0; i<ringsize; ++i ) {
+      cur_seg = LD.point_segment_idx[i];
+      if(cur_seg==prev_seg && cur_seg!=0) { // we are inside a segment
+
+      } else if (cur_seg!=0 && prev_seg==0) { // from unsegmented to segmented
+        new_ring_ids.push_back(std::make_pair(i, cur_seg)); // first of cur
+        if(i==0) perfect_aligned=true;
+        // new_ring_ids.push_back(i); // end of unsegmented linesegment
+      } else if (cur_seg!=0 && prev_seg!=0) { // from one segment to another
+        new_ring_ids.push_back(std::make_pair(prev_i, prev_seg)); // last of prev
+        new_ring_ids.push_back(std::make_pair(i, cur_seg)); // first of cur
+      } else if (cur_seg==0 && prev_seg!=0) { //from segment to unsegmented
+        new_ring_ids.push_back(std::make_pair(prev_i, prev_seg)); // last of prev
+        // new_ring_ids.push_back(prev_i); // begin of unsegmented linesegment
+      } // else: we are inside an unsegmented or segmented zone
+      prev_seg = cur_seg;
+      prev_i = i;
+    }
+    if (!perfect_aligned) { // add the segment that runs through the first point in the original ring
+      new_ring_ids.insert(new_ring_ids.begin(), new_ring_ids.back());
+      new_ring_ids.pop_back();
+    }
+    //ensure the ring is aligned wrt diff region ids around origin of the ring
+    if (new_ring_ids.front().second == new_ring_ids.back().second) {
+      size_t region = new_ring_ids.front().second;
+      do {
+        new_ring_ids.push_back(new_ring_ids.front());
+        new_ring_ids.erase(new_ring_ids.begin());
+      } while (region == new_ring_ids.front().second);
+    }
+    //merge multiple segments of the same region
+    std::unordered_map<size_t,std::pair<size_t,size_t>> map_by_region;
+    for (auto el = new_ring_ids.begin(); el<new_ring_ids.end(); ++el) {
+      if(!map_by_region.count(el->second)) {
+        map_by_region[el->second] = std::make_pair(el->first, el->first);
+      } else {
+        map_by_region[el->second].second = el->first;
+      }
+    }
+    //sort the segments acc to order in ring
+    typedef std::set<std::pair<size_t,size_t>,Cmp> SegSet;
+    SegSet sorted_segments;
+    for (auto& el : map_by_region) {
+      sorted_segments.insert(el.second);
+    }
+    // TODO: better check for overlapping segments! Following is not 100% robust...
+    if (param<bool>("remove_overlap")) {
+      auto el_prev = sorted_segments.begin();
+      // el_prev.first-=sorted_segments.size();
+      // el_prev.second-=sorted_segments.size();
+      std::vector<SegSet::iterator> to_remove;
+      for (auto el = ++sorted_segments.begin(); el != sorted_segments.end(); ++el ){
+        el_prev = el;
+        --el_prev;
+        if (el_prev->second > el->first)
+          to_remove.push_back(el);
+      }
+      for (auto el : to_remove) {
+        sorted_segments.erase(el);
+      }
+    }
+    if (param<bool>("perform_chaining")) {
+      std::vector<SCK::Segment_2> prechain_segments;
+      std::vector<size_t> idx; size_t idcnt=0;
+      for (auto& [i0,i1] : sorted_segments) {
+        // segments_out.push_back( LD.project(i0, i1) );
+        prechain_segments.push_back( LD.project_cgal(i0, i1, param<float>("line_extend")) );
+        idx.push_back(idcnt++);
+      }
+      // TODO: chain the ring? for better regularisation results
+      auto chained_segments = linereg::chain_ring<SCK>(idx, prechain_segments, param<float>("snap_threshold"));
+
+      // for (auto e=prechain_segments.begin(); e!=prechain_segments.end(); ++e) {
+      for (auto e=chained_segments.edges_begin(); e!=chained_segments.edges_end(); ++e) {
+        segments_out.push_back({
+          arr3f{
+            float(CGAL::to_double(e->source().x())),
+            float(CGAL::to_double(e->source().y())),
+            0},
+          arr3f{
+            float(CGAL::to_double(e->target().x())),
+            float(CGAL::to_double(e->target().y())),
+            0},
+        });
+      }
+      return chained_segments.size();
+    } else {
+      for (const auto& e : sorted_segments) {
+        segments_out.push_back(
+          LD.project(e.first,e.second)
+        );
+      }
+      return sorted_segments.size();
+    }
+  } else return 0;
+  
+}
+
 void DetectLinesNode::process(){
   auto input_geom = input("edge_points");
 
-  SegmentCollection edge_segments;
+  SegmentCollection edge_segments, lines3d;
   vec1i ring_order, ring_id, is_start;
-  // std::vector<SegmentCollection> segment_collections;
   std::vector<std::vector<size_t>> ring_idx;
   // fit lines in all input points
-  if (input_geom.connected_type == TT_point_collection) {
+  if (input_geom.connected_type == typeid(PointCollection)) {
     std::vector<linedect::Point> cgal_pts;
     auto points = input_geom.get<PointCollection>();
     for( auto& p : points ) {
       cgal_pts.push_back(linedect::Point(p[0], p[1], p[2]));
     }
     linedect::LineDetector LD(cgal_pts);
-    LD.dist_thres = c.linedetect_dist_threshold * c.linedetect_dist_threshold;
-    LD.min_segment_count = c.linedetect_min_segment_count;
-    LD.N = c.linedetect_k;
-    LD.detect();
+    detect_lines(LD);
     LD.get_bounded_edges(edge_segments);
 
   // fit lines per ring
-  } else if (input_geom.connected_type == TT_linear_ring_collection) {
+  } else if (input_geom.connected_type == typeid(LinearRingCollection)) {
     auto rings = input_geom.get<LinearRingCollection>();
-    int n = c.linedetect_k;
+    int n = param<int>("k");
     ring_idx.resize(rings.size());
     
     size_t ring_cntr=0;
@@ -933,7 +1513,7 @@ void DetectLinesNode::process(){
         cgal_pts.push_back(linedect::Point(p[0], p[1], p[2]));
       }
 
-      if (use_linear_neighboorhood) {
+      if (param<bool>("linear_knn")) {
         int kb = n/2; //backward neighbors
         int kf = n-kb-1; //forward neighbours
 
@@ -949,85 +1529,24 @@ void DetectLinesNode::process(){
           neighbours.push_back(idx);
         }
         linedect::LineDetector LD(cgal_pts, neighbours);
-        LD.dist_thres = c.linedetect_dist_threshold * c.linedetect_dist_threshold;
-        LD.min_segment_count = c.linedetect_min_segment_count;
-        LD.N = n;
-        LD.detect();
+        detect_lines(LD);
         LD.get_bounded_edges(edge_segments);
       } else {
+        
         linedect::LineDetector LD(cgal_pts);
-        LD.dist_thres = c.linedetect_dist_threshold * c.linedetect_dist_threshold;
-        LD.min_segment_count = c.linedetect_min_segment_count;
-        LD.N = n;
-        LD.detect();
-        // size_t n_edges = LD.get_bounded_edges(edge_segments);
-        // for (size_t i=0; i<n_edges; ++i) {
-        //   ring_order.push_back(i);
-        //   ring_id.push_back(ring_cntr);
-        //   is_start.push_back(1);
-        //   ring_order.push_back(i);
-        //   ring_id.push_back(ring_cntr);
-        //   is_start.push_back(0);
-        // } ++ring_cntr;
+        // SegmentCollection ring_edges;
+        auto n_detected = detect_lines_ring_m2(LD, edge_segments);
+        LD.get_bounded_edges(lines3d);
 
-        // chain the detected lines, to ensure correct order
-        if (LD.segment_shapes.size()>1) {
-          vec1i new_ring_ids;
-          bool start_seg = LD.point_segment_idx[0];
-          int prev_i=ring.size()-1,
-            prev_seg=LD.point_segment_idx[prev_i], 
-            cur_seg, 
-            i_last_seg = -1;
-          bool no_offset=false;
-          for( int i=0; i<ring.size(); ++i ) {
-            cur_seg = LD.point_segment_idx[i];
-            if(cur_seg==prev_seg && cur_seg!=0) { // we are inside a segment
-
-            } else if (cur_seg!=0 && prev_seg==0) { // from unsegmented to segmented
-              new_ring_ids.push_back(i); // first of cur
-              if(i==0) no_offset=true;
-              // new_ring_ids.push_back(i); // end of unsegmented linesegment
-            } else if (cur_seg!=0 && prev_seg!=0) { // from one segment to another
-              new_ring_ids.push_back(prev_i); // last of prev
-              new_ring_ids.push_back(i); // first of cur
-            } else if (cur_seg==0 && prev_seg!=0) { //from segment to unsegmented
-              new_ring_ids.push_back(prev_i); // last of prev
-              // new_ring_ids.push_back(prev_i); // begin of unsegmented linesegment
-            } // else: we are inside an unsegmented or segmented zone
-            prev_seg = cur_seg;
-            prev_i = i;
-          }
-          int last = new_ring_ids.size()-1;
-          int order_cnt=0;
-          
-          // ring_idx.push_back();
-          for(int i = no_offset ? 0:1; i<last; i += 2) {
-            // TODO: reproject points on fitted line!!
-            auto& p0 = ring[new_ring_ids[i]];
-            auto& p1 = ring[new_ring_ids[i+1]];
-            edge_segments.push_back({p0,p1});
-            ring_idx[ring_cntr].push_back(seg_cntr++);
-            // segment_collections.back().push_back({p0,p1});
-            ring_order.push_back(order_cnt);
-            ring_id.push_back(ring_cntr);
-            ring_order.push_back(order_cnt++);
-            ring_id.push_back(ring_cntr);
-            is_start.push_back(1);
-            is_start.push_back(0);
-          }
-          if(!no_offset) {
-            auto& p0 = ring[new_ring_ids[last]];
-            auto& p1 = ring[new_ring_ids[0]];
-            edge_segments.push_back({p0,p1});
-            ring_idx[ring_cntr].push_back(seg_cntr++);
-            // segment_collections.back().push_back({p0,p1});
-            ring_order.push_back(order_cnt);
-            ring_id.push_back(ring_cntr);
-            ring_order.push_back(order_cnt++);
-            ring_id.push_back(ring_cntr);
-            is_start.push_back(1);
-            is_start.push_back(0);
-          }
+        for (size_t j=0; j<n_detected; ++j) {
+          // edge_segments.push_back(ring_edges[j]);
+          ring_idx[ring_cntr].push_back(seg_cntr++);
+          ring_order.push_back(j);
+          ring_id.push_back(ring_cntr);
+          ring_order.push_back(j);
+          ring_id.push_back(ring_cntr);
+          is_start.push_back(1);
+          is_start.push_back(0);
         }
         ++ring_cntr;
         // std::cout << "number of shapes: " << LD.segment_shapes.size() <<"\n";
@@ -1037,6 +1556,8 @@ void DetectLinesNode::process(){
   }
 
   output("edge_segments").set(edge_segments);
+  output("lines3d").set(lines3d);
+  // output("ring_edges").set(ring_edges);
   output("ring_idx").set(ring_idx);
   output("ring_id").set(ring_id);
   output("ring_order").set(ring_order);
@@ -1118,14 +1639,15 @@ void DetectPlanesNode::process() {
   PD.normal_thres = metrics_plane_normal_threshold;
   PD.min_segment_count = metrics_plane_min_points;
   PD.N = metrics_normal_k;
+  PD.n_refit = param<int>("n_refit");
   PD.detect();
 
   // classify horizontal/vertical planes using plane normals
   std::unordered_map<int, std::vector<Point>> pts_per_roofplane;
   size_t horiz_roofplane_cnt=0;
   size_t slant_roofplane_cnt=0;
-  if (param<bool>("only_horizontal"))
-    pts_per_roofplane[-1] = std::vector<Point>();
+  if (param<bool>("only_horizontal")) pts_per_roofplane[-1] = std::vector<Point>();
+  size_t horiz_pt_cnt=0, total_pt_cnt=0;
   for(auto seg: PD.segment_shapes){
     auto& plane = seg.second;
     Vector n = plane.orthogonal_vector();
@@ -1137,9 +1659,11 @@ void DetectPlanesNode::process() {
     // put slanted surface points at index -1 if we care only about horzontal surfaces
     if (!is_wall) {
       auto segpts = PD.get_points(seg.first);
+      total_pt_cnt += segpts.size();
       if (!param<bool>("only_horizontal") ||
           (param<bool>("only_horizontal") && is_horizontal)) {
         pts_per_roofplane[seg.first] = segpts;
+        horiz_pt_cnt += segpts.size();
       } else if (!is_horizontal) {
         pts_per_roofplane[-1].insert(
           pts_per_roofplane[-1].end(),
@@ -1161,20 +1685,23 @@ void DetectPlanesNode::process() {
     }
   }
 
+  bool b_is_horizontal = float(horiz_pt_cnt)/float(total_pt_cnt) > param<float>("horiz_min_count");
   int building_type=-2; // as built: -2=undefined; -1=no pts; 0=LOD1, 1=LOD1.3, 2=LOD2
-  if (horiz_roofplane_cnt==1 && slant_roofplane_cnt==0)
-    building_type=0;
-  else if (horiz_roofplane_cnt!=0 && slant_roofplane_cnt==0)
-    building_type=1;
-  else if (slant_roofplane_cnt!=0)
-    building_type=2;
-  else if (PD.segment_shapes.size()==0)
+  if (PD.segment_shapes.size()==0) {
     building_type=-1;
+  } else if (horiz_roofplane_cnt==1 && slant_roofplane_cnt==0){
+    building_type=0;
+  } else if (b_is_horizontal){
+    building_type=1;
+  } else if (slant_roofplane_cnt > 0) {
+    building_type=2;
+  }
 
   output("class").set(building_type);
   output("classf").set(float(building_type));
   output("horiz_roofplane_cnt").set(float(horiz_roofplane_cnt));
   output("slant_roofplane_cnt").set(float(slant_roofplane_cnt));
+  output("roof_pt_cnt").set((int)total_pt_cnt);
 
   vec1i plane_id, is_wall, is_horizontal;
   for(auto& p : pnl_points) {
@@ -1561,62 +2088,68 @@ void RegulariseRingsNode::process(){
   // auto ring_id = input("ring_id").get<vec1i>();
   // auto ring_order = input("ring_order").get<vec1i>();
 
-  SegmentCollection all_edges;
+  // SegmentCollection all_edges;
 
   // build vector of all input edges
   // for(auto edge : edges) {
   //   all_edges.push_back(edge);
   // }
   // size_t fpi_begin = all_edges.size();
-  SegmentCollection fp_edges;
-  for(size_t i=0; i<footprint.size()-1; ++i) {
-    fp_edges.push_back(Segment({footprint[i], footprint[i+1]}));
+  // SegmentCollection fp_edges;
+  // for(size_t i=0; i<footprint.size()-1; ++i) {
+  //   fp_edges.push_back(Segment({footprint[i], footprint[i+1]}));
+  // }
+  // fp_edges.push_back(
+  //   Segment({footprint[footprint.size()-1], footprint[0]})
+  // );
+  linereg::Polygon_2 ek_footprint;
+  for (auto& p : footprint) {
+    ek_footprint.push_back(linereg::EK::Point_2(p[0], p[1]));
   }
-  fp_edges.push_back(
-    Segment({footprint[footprint.size()-1], footprint[0]})
-  );
   // size_t fpi_end = all_edges.size()-1;
 
   // get clusters from line regularisation 
   auto LR = linereg::LineRegulariser();
   LR.add_segments(0,edges);
-  LR.add_segments(1,fp_edges);
+  LR.add_segments(1,ek_footprint, (double) param<float>("fp_offset"));
   LR.dist_threshold = param<float>("dist_threshold");
   LR.angle_threshold = param<float>("angle_threshold");
-  LR.cluster(param<bool>("weighted_avg"));
+  LR.cluster(param<bool>("weighted_avg"), param<bool>("angle_per_distcluster"));
 
   std::vector<linereg::Polygon_2> exact_polygons;
   for (auto& idx : ring_idx) {
     exact_polygons.push_back(
-      linereg::chain_ring(idx, LR.get_segments(0), param<float>("snap_threshold"))
+      linereg::chain_ring<linereg::EK>(idx, LR.get_segments(0), param<float>("snap_threshold"))
     );
+    // std::cout << "ch ring size : "<< exact_polygons.back().size() << ", " << exact_polygons.back().is_simple() << "\n";
   }
-  std::vector<size_t> fp_idx;
-  for (size_t i=0; i < LR.get_segments(1).size(); ++i) {
-    fp_idx.push_back(i);
-  }
-  auto exact_fp = linereg::chain_ring(fp_idx, LR.get_segments(1), param<float>("snap_threshold"));
+  // std::cout << "ch fp size : "<< exact_fp.size() << ", " << exact_fp.is_simple() << "\n";
   output("exact_rings_out").set(exact_polygons);
-  output("exact_footprint_out").set(exact_fp);
 
+  if (param<bool>("regularise_fp")) {
+    std::vector<size_t> fp_idx;
+    for (size_t i=0; i < LR.get_segments(1).size(); ++i) {
+      fp_idx.push_back(i);
+    }
+    auto ek_reg_fp = linereg::chain_ring<linereg::EK>(fp_idx, LR.get_segments(1), param<float>("snap_threshold"));
+    output("exact_footprint_out").set(ek_reg_fp);
+  } else {
+    output("exact_footprint_out").set(ek_footprint);
+  }
 
-  // LinearRingCollection new_rings;
-  // for (auto& idx : ring_idx) {
-  //   LinearRing new_ring;
-  //   if (idx.size()>1) {
-  //     for (size_t i=idx[1]; i<idx[0]+idx.size(); ++i) {
-  //       chain(all_edges[i-1], all_edges[i], new_ring, param<float>("snap_threshold"));
-  //     }
-  //     chain(all_edges[idx[idx.size()-1]], all_edges[idx[0]], new_ring, param<float>("snap_threshold"));
-  //   }
-  //   new_rings.push_back(new_ring);
-  // }
-
-  // LinearRing new_fp;
-  // for (size_t i=fpi_begin+1; i<=fpi_end; ++i) {
-  //   chain(all_edges[i-1], all_edges[i], new_fp, param<float>("snap_threshold"));
-  // }
-  // chain(all_edges[fpi_end], all_edges[fpi_begin], new_fp, param<float>("snap_threshold"));
+  LinearRingCollection lrc;
+  for (auto& poly : exact_polygons) {
+    LinearRing lr;
+    for (auto p=poly.vertices_begin(); p!=poly.vertices_end(); ++p) {
+      lr.push_back({
+        float(CGAL::to_double(p->x())),
+        float(CGAL::to_double(p->y())),
+        0
+      });
+    }
+    lrc.push_back(lr);
+  }
+  output("rings_out").set(lrc);
 
   SegmentCollection new_segments;
   vec1i priorities;
@@ -1685,12 +2218,12 @@ void SimplifyPolygonNode::process(){
 
   auto threshold_stop_cost = param<float>("threshold_stop_cost");
 
-  if (geom_term.connected_type==TT_linear_ring) {
+  if (geom_term.connected_type==typeid(LinearRing)) {
     auto& polygon = geom_term.get<LinearRing&>();
     output("polygon_simp").set(
       simplify_footprint(polygon, threshold_stop_cost)
     );
-  } else if (geom_term.connected_type==TT_linear_ring_collection) {
+  } else if (geom_term.connected_type==typeid(LinearRingCollection)) {
     auto& polygons = geom_term.get<LinearRingCollection&>();
     LinearRingCollection polygons_out;
     for (auto& polygon : polygons) {

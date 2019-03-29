@@ -3,10 +3,8 @@
 #include <nlohmann/json.hpp>
 
 namespace geoflow::nodes::cityjson {
-
-  class CityJSONReaderNode:public Node {
-
-  std::unordered_map <std::string, int> st_map = 
+  
+  static std::unordered_map <std::string, int> st_map = 
   {
     {"RoofSurface", 0},
     {"GroundSurface",1},
@@ -18,13 +16,14 @@ namespace geoflow::nodes::cityjson {
     {"Door", 7}
   };
 
-  public:
+  class CityJSONReaderNode : public Node {
+    public:
     using Node::Node;
     
     void init() {
       // declare ouput terminals
-      add_output("faces", TT_linear_ring_collection);
-      add_output("surface_types", TT_vec1i);
+      add_output("faces", typeid(LinearRingCollection));
+      add_output("surface_types", typeid(vec1i));
 
       // declare parameters
       add_param("filepath", (std::string) "DenHaag_01.json");
@@ -78,7 +77,7 @@ namespace geoflow::nodes::cityjson {
                 // get the surface type
               }
               int value = geom["semantics"]["values"][0][face_cnt++];
-              std::string type_string = geom["semantics"]["surfaces"][value]["type"];
+              const std::string type_string = geom["semantics"]["surfaces"][value]["type"];
               surface_types.push_back(st_map[type_string]);
               faces.push_back(ring);
             }
@@ -93,9 +92,9 @@ namespace geoflow::nodes::cityjson {
   };
 
   // Create a NodeRegister, ie a list of all available nodes
-  NodeRegister create_register() {
-    NodeRegister R("CityJSON");
-    R.register_node<CityJSONReaderNode>("CityJSONReader");
+  NodeRegisterHandle create_register() {
+    auto R = NodeRegister::create("CityJSON");
+    R->register_node<CityJSONReaderNode>("CityJSONReader");
     return R;
   }
 }

@@ -17,9 +17,9 @@ int main(int ac, const char * av[])
     geoflow::NodeManager N;
 
     // register nodes
-    NodeRegister cgal = gfn::cgal::create_register();
-    NodeRegister mat = gfn::mat::create_register();
-    NodeRegister las = gfn::las::create_register();
+    auto cgal = gfn::cgal::create_register();
+    auto mat = gfn::mat::create_register();
+    auto las = gfn::las::create_register();
 
     //auto las_loader_node = N.create_node(las, "LASLoader", { 100,100 });
     auto PLY_loaderNode = N.create_node(mat, "PLYLoaderNode", { 100,100 });

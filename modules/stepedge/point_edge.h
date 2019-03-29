@@ -87,7 +87,8 @@ typedef CGAL::Orthogonal_k_neighbor_search<TreeTraits> Neighbor_search;
 typedef Neighbor_search::Tree Tree;
 
 // least squares stuff
-typedef CGAL::Simple_cartesian<double> SCK;
+// typedef CGAL::Simple_cartesian<double> SCK;
+typedef CGAL::Cartesian<double> SCK;
 typedef SCK::Point_3 Point_SCK;
 typedef SCK::Line_3 Line_SCK;
 
@@ -119,10 +120,7 @@ struct FaceInfo {
   float total_count;
 };
 struct EdgeInfo {
-  bool is_touched=false;
-  bool is_footprint=false;
-  Kernel::Point_2 c;
-  double halfdist_sq;
+  bool blocks = false;
 };
 typedef CGAL::Arr_extended_dcel<Traits_2, bool, EdgeInfo, FaceInfo>   Dcel;
 typedef CGAL::Arrangement_2<Traits_2, Dcel>           Arrangement_2;
@@ -254,6 +252,21 @@ class Face_merge_observer : public CGAL::Arr_observer<Arrangement_2>
       return;
     }
     remaining_face->data().points.insert(remaining_face->data().points.end(), discarded_face->data().points.begin(), discarded_face->data().points.end() );
+  }
+};
+
+class Snap_observer : public CGAL::Arr_observer<Arrangement_2>
+{ 
+  public:
+  Snap_observer (Arrangement_2& arr) :
+    CGAL::Arr_observer<Arrangement_2> (arr) {};
+
+  virtual void 	after_create_edge (Halfedge_handle e) {
+    e->data().blocks = true;
+  }
+  virtual void after_split_face (Face_handle old_face, Face_handle new_face, bool ) {
+    if (old_face->data().segid==0)
+      new_face->set_data(old_face->data());
   }
 };
 

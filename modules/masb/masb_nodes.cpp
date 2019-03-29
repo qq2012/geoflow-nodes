@@ -59,11 +59,17 @@ void ComputeMedialAxisNode::process(){
       ma_radius.push_back(r);
   }
 
+  vec1f ma_radii(madata.m*2);
+  for(size_t i=0; i<madata.m*2; ++i) {
+    ma_radii.push_back( Vrui::Geometry::dist(coords[i%madata.m], ma_coords_[i]) );
+  }
+
   vec1i ma_is_interior(madata.m*2, 0);
   std::fill_n(ma_is_interior.begin(), madata.m, 1);
 
   output("coords_masb").set(coords);
   output("ma_coords").set(ma_coords);
+  output("ma_radii").set(ma_radii);
   output("ma_qidx").set(ma_qidx);
   output("ma_radius").set(ma_radius);
   output("ma_is_interior").set(ma_is_interior);
@@ -320,6 +326,7 @@ void MedialSegmentNode::process() {
     output("seg_id").set(seg_idx_);
     output("sheet_all").set(sheet_all_);
     output("ma_coords").set(ma_coords_);
+    
     output("madata_in").set(madata_in);
     output("madata_out").set(madata_out);
     output("maGeometry_in").set(maGeometry_in);
@@ -328,7 +335,7 @@ void MedialSegmentNode::process() {
     output("seg_out").set(seg_out_);
     output("sheet_in").set(sheet_in_);
     output("sheet_out").set(sheet_out_);
-
+    
 }
 
 void MaPt_in_oneTraceNode::process() {

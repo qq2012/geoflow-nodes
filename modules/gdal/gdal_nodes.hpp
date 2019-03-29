@@ -10,12 +10,16 @@ namespace geoflow::nodes::gdal {
 
     std::string geometry_type_name;
     OGRwkbGeometryType geometry_type;
+    
+    void push_attributes(OGRFeature& poFeature);
 
   public:
     using Node::Node;
     void init() {
-      add_output("line_strings", TT_line_string_collection);
-      add_output("linear_rings", TT_linear_ring_collection);
+      add_output("line_strings", typeid(LineStringCollection));
+      add_output("linear_rings", typeid(LinearRingCollection));
+
+      add_output_group("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
 
       add_param("filepath", (std::string) "");
       add_param("layer_id", (int)0);
@@ -36,8 +40,9 @@ namespace geoflow::nodes::gdal {
 
     using Node::Node;
     void init() {
-      add_input("geometries", { TT_line_string_collection, TT_linear_ring_collection });
-      add_input("attributes", TT_attribute_map_f);
+      add_input("geometries", { typeid(LineStringCollection), typeid(LinearRingCollection) });
+
+      add_input_group("attributes", {typeid(vec1b), typeid(vec1i), typeid(vec1f), typeid(vec1s)});
 
       add_param("filepath", (std::string) "out");
     }
@@ -52,8 +57,8 @@ namespace geoflow::nodes::gdal {
     int epsg = 7415;
     using Node::Node;
     void init() {
-      add_input("geometries", { TT_line_string_collection, TT_linear_ring_collection });
-
+      add_input("geometries", { typeid(LineStringCollection), typeid(LinearRingCollection) });
+      
       add_param("filepath", (std::string) "out");
     }
     void gui() {
@@ -66,7 +71,7 @@ namespace geoflow::nodes::gdal {
   public:
     using Node::Node;
     void init() {
-      add_output("points", TT_point_collection);
+      add_output("points", typeid(PointCollection));
 
       add_param("filepath", (std::string) "");
       add_param("thin_nth", (int)5);
@@ -82,8 +87,8 @@ namespace geoflow::nodes::gdal {
   public:
     using Node::Node;
     void init() {
-      add_input("points", TT_point_collection);
-      add_input("distances", TT_vec1f);
+      add_input("points", typeid(PointCollection));
+      add_input("distances", typeid(vec1f));
 
       add_param("filepath", (std::string) "out.csv");
     }
@@ -97,8 +102,8 @@ namespace geoflow::nodes::gdal {
   public:
     using Node::Node;
     void init() {
-      add_input("lines", TT_line_string_collection);
-      add_output("lines", TT_line_string_collection);
+      add_input("lines", typeid(LineStringCollection));
+      add_output("lines", typeid(LineStringCollection));
     }
     void process();
   };
