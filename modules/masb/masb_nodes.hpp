@@ -52,6 +52,7 @@ namespace geoflow::nodes::mat {
       ImGui::SliderInt("K", &param<int>("K"), 1, 100);
     }
     void process();
+
   };
 
   class MaGeometryNode :public Node {
@@ -225,6 +226,8 @@ namespace geoflow::nodes::mat {
           add_output("filter", typeid(vec1i));
           add_output("ridge", typeid(LineStringCollection));
           add_output("ridgeId", typeid(vec1i));
+          add_output("longest_path", typeid(LineStringCollection));
+          add_output("longest_id",typeid(vec1i));
 
           add_output("bisector_p_vis", typeid(LineStringCollection));
           add_output("bisector_q_vis", typeid(LineStringCollection));

@@ -1,13 +1,13 @@
 #include "ConnectCandidatePt.h"
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/kruskal_min_spanning_tree.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <iostream>
 #include <fstream>
 
-struct VertexId { int idx; };
 using namespace boost;
-//typedef adjacency_list < vecS, vecS, undirectedS, no_property, 
-//                                property < edge_weight_t, float > > Graph;
+
 typedef property<boost::edge_weight_t, float> EdgeWeightProperty;
 typedef property<boost::vertex_index_t, size_t> Vertex_Id;
 typedef adjacency_list<vecS, vecS, undirectedS, Vertex_Id, EdgeWeightProperty> Graph;
@@ -19,7 +19,8 @@ typedef boost::graph_traits<Graph>::vertex_iterator     VertexIterator;
 //typedef boost::graph_traits<Graph>::edge_iterator       EdgeIterator;
 
 void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList &candidate,
-    masb::intList &seg_id, masb::intList &filter, ridge::segment &segmentList, masb::intList &idList){
+    masb::intList &seg_id, masb::intList &filter, ridge::segment &segmentList, masb::intList &idList,
+    line &symple_segmentList, masb::intList &symple_idList){
     
     float filter_thresh = 5.0;
 
@@ -58,10 +59,9 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
                 cur_candidate.push_back(candidate[i]);
             }
         }
-
         if (cur_candidate.size() != cur_size)
             std::cout << "Error" << std::endl;
-
+        
         /*
         //example
         const int num_nodes = 5;
@@ -100,6 +100,7 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
         if (boost::num_edges(g) != cur_size * (cur_size - 1) / 2)
             std::cout << "error in adding edge" << std::endl;
         */
+        
         std::cout << "start connect ridge " << cur_sheet << std::endl;
         //cur_size = 200;
         Graph g(cur_size);
@@ -135,6 +136,7 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
         4 <--> 0 with weight of 1
         1 <--> 3 with weight of 1
         */
+        
         for (std::vector < Edge >::iterator ei = spanning_tree.begin();
             ei != spanning_tree.end(); ++ei) {
             auto idx_p = source(*ei, g);
@@ -146,5 +148,135 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
         masb::intList temp;
         temp.resize(cur_size - 1, cur_sheet);
         idList.insert(idList.end(), temp.begin(), temp.end());
+        
+        
+        Graph g_short;
+        for (std::size_t j = 0; j < cur_size; ++j) {
+            Vertex vdi = boost::add_vertex(Vertex_Id(j), g_short);
+        }
+        property_map<Graph, edge_weight_t>::type weightmap_s = get(edge_weight, g_short);
+        for (std::vector < Edge >::iterator ei = spanning_tree.begin();
+            ei != spanning_tree.end(); ++ei) {
+            auto idx_p = source(*ei, g);
+            auto idx_q = target(*ei, g);
+            E ea = E(idx_p, idx_q);
+            Edge e; bool inserted;
+            boost::tie(e, inserted) = add_edge(ea.first, ea.second, g_short);
+            weightmap_s[e] = weight[*ei];
+        }
+        std::vector<Vertex> p(num_vertices(g_short));
+        std::vector<float> d(num_vertices(g_short));
+        property_map<Graph, vertex_index_t>::type indexmap = get(vertex_index, g_short);
+        //property_map<Graph, edge_weight_t>::type weightmap_s = get(edge_weight, g_short);
+        float maxWeight = 0;
+        Vertex maxEnd;
+        Vertex maxStrat;
+        for (std::size_t j = 0; j < cur_size; ++j) {
+            Vertex s = vertex(j, g_short);
+            //dijkstra_shortest_paths(g_short, s, &p[0], &d[0], weightmap_s, indexmap,
+            //    std::less<int>(), closed_plus<int>(),
+            //    (std::numeric_limits<int>::max)(), 0,
+            //    default_dijkstra_visitor());
+            dijkstra_shortest_paths(g_short, s, predecessor_map(&p[0]).distance_map(&d[0]));
+            /*
+            std::cout << "distances and parents:" << std::endl;
+            graph_traits < Graph >::vertex_iterator vi, vend;
+            for (tie(vi, vend) = vertices(g_short); vi != vend; ++vi) {
+                std::cout << "distance(" << indexmap[*vi] << ") = " << d[*vi] << ", ";
+                std::cout << "parent(" << indexmap[*vi] << ") = " << indexmap[p[*vi]] << std::
+                    endl;
+            }
+            std::cout << std::endl;
+            */
+            graph_traits < Graph >::vertex_iterator vii, vendd;
+            for (tie(vii, vendd) = vertices(g_short); vii != vendd; ++vii) {
+                if (maxWeight < d[*vii]) {
+                    maxWeight = d[*vii];
+                    maxEnd = *vii;
+                    maxStrat = s;
+                }
+            }           
+        }
+        std::cout << "longest path -- " << maxWeight
+            << " starts at point -- " << indexmap[maxStrat]
+            << " ends at point -- " << indexmap[maxEnd] << "\n";
+        //because d,p are modified, need to calculate shortest path again
+        dijkstra_shortest_paths(g_short, maxStrat, predecessor_map(&p[0]).distance_map(&d[0]));
+       
+        std::vector< graph_traits< Graph >::vertex_descriptor > path;
+        graph_traits< Graph >::vertex_descriptor current = maxEnd;
+
+        while (current != maxStrat) {
+            path.push_back(current);
+            current = p[current];
+        }
+        path.push_back(maxStrat);
+        masb::PointList a_line;
+        std::vector< graph_traits< Graph >::vertex_descriptor >::iterator it;
+        for (it = path.begin(); it != path.end(); ++it) {
+            //std::cout << indexmap[*it] << " ";
+            auto pt_idx = indexmap[*it];
+            masb::Point pt = cur_candidate[pt_idx];
+            a_line.push_back(pt);
+        }
+        //std::cout << std::endl;
+        symple_segmentList.push_back(a_line);
+        symple_idList.push_back(cur_sheet);
+
+
+
+        /*
+        //example for shortest path
+        typedef adjacency_list < listS, vecS, directedS,no_property, property < edge_weight_t, float > > graph_t;
+        typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
+        typedef graph_traits < graph_t >::edge_descriptor edge_descriptor;
+        typedef std::pair<int, int> Edge;
+
+        const int num_nodes = 5;
+        enum nodes { A, B, C, D, E };
+        char name[] = "ABCDE";
+        Edge edge_array[] = { Edge(A, C), Edge(B, B), Edge(B, D), Edge(B, E),
+          Edge(C, B), Edge(C, D), Edge(D, E), Edge(E, A), Edge(E, B)
+        };
+        float weights[] = { 1.1, 2.1, 1.2, 2.2, 7.7, 3.4, 1.6, 1.76, 1.0 };
+        int num_arcs = sizeof(edge_array) / sizeof(Edge);
+        #if defined(BOOST_MSVC) && BOOST_MSVC <= 1300
+        graph_t g(num_nodes);
+        property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
+        for (std::size_t j = 0; j < num_arcs; ++j) {
+            edge_descriptor e; bool inserted;
+            tie(e, inserted) = add_edge(edge_array[j].first, edge_array[j].second, g);
+            weightmap[e] = weights[j];
+        }
+        #else
+        graph_t g(edge_array, edge_array + num_arcs, weights, num_nodes);
+        property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
+        #endif
+        std::vector<vertex_descriptor> p(num_vertices(g));
+        std::vector<float> d(num_vertices(g));
+        vertex_descriptor s = vertex(A, g);
+
+        #if defined(BOOST_MSVC) && BOOST_MSVC <= 1300
+        // VC++ has trouble with the named parameters mechanism
+        property_map<graph_t, vertex_index_t>::type indexmap = get(vertex_index, g);
+        dijkstra_shortest_paths(g, s, &p[0], &d[0], weightmap, indexmap,
+            std::less<int>(), closed_plus<int>(),
+            (std::numeric_limits<int>::max)(), 0,
+            default_dijkstra_visitor());
+        #else
+        dijkstra_shortest_paths(g, s, predecessor_map(&p[0]).distance_map(&d[0]));
+        #endif
+
+        std::cout << "distances and parents:" << std::endl;
+        graph_traits < graph_t >::vertex_iterator vi, vend;
+        for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
+            std::cout << "distance(" << name[*vi] << ") = " << d[*vi] << ", ";
+            std::cout << "parent(" << name[*vi] << ") = " << name[p[*vi]] << std::
+                endl;
+        }
+        std::cout << std::endl;
+
+        */
+        
     }
 }

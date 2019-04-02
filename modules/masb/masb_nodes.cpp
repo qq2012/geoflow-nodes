@@ -477,7 +477,8 @@ void ReadCandidatePtWithBisecNode::process() {
 
     std::ifstream infile;
     std::string filepath;
-    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
+    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
+    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
     infile.open(filepath);
     std::string dummyLine;
     int size;
@@ -586,8 +587,10 @@ void ConnectCandidatePtNode::process() {
     masb::intList filter;
     ridge::segment segmentList;
     masb::intList idList;
+    ridge::line symple_segmentList;
+    masb::intList symple_idList;
     ridge::connectCandidatePt8MST(pointCloud, candidate_r, seg_id,
-        filter, segmentList, idList);
+        filter, segmentList, idList, symple_segmentList, symple_idList);
 
     vec1i filter_;
     filter_.reserve(filter.size());
@@ -606,6 +609,20 @@ void ConnectCandidatePtNode::process() {
     idList_.reserve(idList.size());
     for (auto i : idList)
         idList_.push_back(i);
+
+    LineStringCollection longest_seg_vis_;
+    longest_seg_vis_.reserve(symple_segmentList.size());
+    for (auto &a_line : symple_segmentList) {
+        LineString tmp;
+        for (auto &p : a_line) {
+            tmp.push_back({ p[0],p[1],p[2] });
+        }
+        longest_seg_vis_.push_back(tmp);
+    }
+    vec1i symple_idList_;
+    symple_idList_.reserve(symple_idList.size());
+    for (auto i : symple_idList)
+        symple_idList_.push_back(i);
 
     LineStringCollection directon_vis_;
     LineStringCollection directon2_vis_;
@@ -643,6 +660,9 @@ void ConnectCandidatePtNode::process() {
     output("directon2_vis").set(directon2_vis_);
     output("bisector_p_vis").set(bisec_p_vis_);
     output("bisector_q_vis").set(bisec_q_vis_);
+    output("longest_path").set(longest_seg_vis_);
+    output("longest_id").set(symple_idList_);
+
     
 }
 void PLYLoaderNode::process() {
