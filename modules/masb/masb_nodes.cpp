@@ -584,13 +584,21 @@ void ConnectCandidatePtNode::process() {
     for (auto id : seg_id_vec1i) {
         seg_id.push_back(id);
     }
-    masb::intList filter;
+    masb::intList filter, filter2;
     ridge::segment segmentList;
-    masb::intList idList;
+    masb::intList idList, idList2;
     ridge::line symple_segmentList;
+    ridge::line line_segmentList;
+    ridge::line smoothLine;
     masb::intList symple_idList;
+    
+    //ridge::connectCandidatePt8Spline(pointCloud, candidate_r, seg_id,
+    //    filter2, line_segmentList, idList2);
+
     ridge::connectCandidatePt8MST(pointCloud, candidate_r, seg_id,
         filter, segmentList, idList, symple_segmentList, symple_idList);
+
+    ridge::connectCandidatePtSmooth(symple_segmentList, smoothLine);
 
     vec1i filter_;
     filter_.reserve(filter.size());
@@ -623,6 +631,16 @@ void ConnectCandidatePtNode::process() {
     symple_idList_.reserve(symple_idList.size());
     for (auto i : symple_idList)
         symple_idList_.push_back(i);
+
+    LineStringCollection smoothLine_vis_;
+    smoothLine_vis_.reserve(smoothLine.size());
+    for (auto& a_smooth_line : smoothLine) {
+        LineString tmp;
+        for (auto &p : a_smooth_line) {
+            tmp.push_back({ p[0],p[1],p[2] });
+        }
+        smoothLine_vis_.push_back(tmp);
+    }
 
     LineStringCollection directon_vis_;
     LineStringCollection directon2_vis_;
@@ -662,6 +680,7 @@ void ConnectCandidatePtNode::process() {
     output("bisector_q_vis").set(bisec_q_vis_);
     output("longest_path").set(longest_seg_vis_);
     output("longest_id").set(symple_idList_);
+    output("smoothLine").set(smoothLine_vis_);
 
     
 }

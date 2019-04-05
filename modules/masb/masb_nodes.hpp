@@ -228,6 +228,7 @@ namespace geoflow::nodes::mat {
           add_output("ridgeId", typeid(vec1i));
           add_output("longest_path", typeid(LineStringCollection));
           add_output("longest_id",typeid(vec1i));
+          add_output("smoothLine", typeid(LineStringCollection));
 
           add_output("bisector_p_vis", typeid(LineStringCollection));
           add_output("bisector_q_vis", typeid(LineStringCollection));

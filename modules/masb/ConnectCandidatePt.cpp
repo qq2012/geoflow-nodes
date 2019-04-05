@@ -5,6 +5,7 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <iostream>
 #include <fstream>
+#include <map>
 
 using namespace boost;
 
@@ -52,6 +53,8 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
     for (const auto& e : seg_frequency) {
         auto cur_sheet = e.first;
         auto cur_size = e.second;
+        if (cur_sheet == 8)
+            continue;
         masb::PointList cur_candidate;
         cur_candidate.reserve(cur_size);
         for (int i = 0; i < seg_id.size(); i++) {
@@ -217,6 +220,7 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             //std::cout << indexmap[*it] << " ";
             auto pt_idx = indexmap[*it];
             masb::Point pt = cur_candidate[pt_idx];
+            //std::cout << pt[0] << " " << pt[1] << " " << pt[2] << std::endl;
             a_line.push_back(pt);
         }
         //std::cout << std::endl;

@@ -11,6 +11,8 @@ namespace ridge{
     void connectCandidatePt8MST(masb::PointList &PointCloud,masb::PointList &candidate, 
         masb::intList &seg_id, masb::intList &filter, segment &segmentList, masb::intList &idList,
         line &symple_segmentList, masb::intList &symple_idList);
-    
+    void connectCandidatePtSmooth(line &symple_segmentList, line &smoothLine);
+    void connectCandidatePt8Spline(masb::PointList &PointCloud, masb::PointList &candidate,
+        masb::intList &seg_id, masb::intList &filter, ridge::line &line_segmentList, masb::intList &idList);
 }
 #endif
