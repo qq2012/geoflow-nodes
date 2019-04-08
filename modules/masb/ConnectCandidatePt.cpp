@@ -53,8 +53,8 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
     for (const auto& e : seg_frequency) {
         auto cur_sheet = e.first;
         auto cur_size = e.second;
-        if (cur_sheet == 8)
-            continue;
+        //if (cur_sheet == 8)
+        //    continue;
         masb::PointList cur_candidate;
         cur_candidate.reserve(cur_size);
         for (int i = 0; i < seg_id.size(); i++) {

@@ -67,11 +67,11 @@ void ComputeMedialAxisNode::process(){
   vec1i ma_is_interior(madata.m*2, 0);
   std::fill_n(ma_is_interior.begin(), madata.m, 1);
 
-  output("coords_masb").set(coords);
+  //output("coords_masb").set(coords);
   output("ma_coords").set(ma_coords);
   output("ma_radii").set(ma_radii);
-  output("ma_qidx").set(ma_qidx);
   output("ma_radius").set(ma_radius);
+  output("ma_qidx").set(ma_qidx);
   output("ma_is_interior").set(ma_is_interior);
 }
 
@@ -168,7 +168,8 @@ void MaGeometryNode::process() {
     }
 
     LineStringCollection bisec;
-    bisec.reserve(madata.ma_coords->size());
+    LineStringCollection cps_vis_, cqs_vis_;
+    //bisec.reserve(madata.ma_coords->size());
     size_t i = 0;
     for (auto &p : *madata.ma_coords) {
         LineString temp;
@@ -177,28 +178,42 @@ void MaGeometryNode::process() {
             temp.push_back({ p[0],p[1],p[2] });
             auto end = p + maGeometry.ma_bisector[i];
             temp.push_back({ end[0],end[1],end[2] });
-            /*
+
             cp.push_back({ p[0],p[1],p[2] });
             cq.push_back({ p[0],p[1],p[2] });
+            masb::Point pi;
             if (i >= madata.m)
-                auto p = (*madata.coords)[i - madata.m];
+                pi = (*madata.coords)[i - madata.m];
             else
-                auto p = (*madata.coords)[i];
-            auto q = (*madata.coords)[madata.ma_qidx[i]];
-            cp.push_back({ p[0],p[1],p[2] });
-            cq.push_back({ q[0],q[1],q[2] });
-            */
+                pi = (*madata.coords)[i];
+            auto qi = (*madata.coords)[madata.ma_qidx[i]];
+            cp.push_back({ pi[0],pi[1],pi[2] });
+            cq.push_back({ qi[0],qi[1],qi[2] });
+
+            bisec.push_back(temp);
+            cps_vis_.push_back(cp);
+            cqs_vis_.push_back(cq);
         }
-        bisec.push_back(temp);
-        //bisec.push_back(cp);
-        //bisec.push_back(cq);
         i++;
+    }
+    LineStringCollection ma_normal_vis_;
+    size_t j = 0;
+    for (auto &p : *madata.ma_coords) {
+        LineString temp;
+        if (madata.ma_qidx[j] != -1) {
+            temp.push_back({ p[0],p[1],p[2] });
+            auto end = p + maGeometry.ma_normal[j];
+            temp.push_back({ end[0],end[1],end[2] });
+            ma_normal_vis_.push_back(temp);
+        }
+        j++;
     }
 
     output("ma_SeparationAng").set(ma_SeparationAng);
     output("ma_bisector").set(ma_bisector);
     output("ma_normal").set(ma_normal);
-    output("bisec").set(bisec);
+    output("bisec_vis").set(bisec);
+    output("ma_normal_vis").set(ma_normal_vis_);
 }
 
 void FilterRNode::process() {
@@ -477,8 +492,8 @@ void ReadCandidatePtWithBisecNode::process() {
 
     std::ifstream infile;
     std::string filepath;
-    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
-    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
+    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
+    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
     infile.open(filepath);
     std::string dummyLine;
     int size;
@@ -632,12 +647,14 @@ void ConnectCandidatePtNode::process() {
     for (auto i : symple_idList)
         symple_idList_.push_back(i);
 
+    PointCollection smoothpoint_vis_;
     LineStringCollection smoothLine_vis_;
     smoothLine_vis_.reserve(smoothLine.size());
     for (auto& a_smooth_line : smoothLine) {
         LineString tmp;
         for (auto &p : a_smooth_line) {
             tmp.push_back({ p[0],p[1],p[2] });
+            smoothpoint_vis_.push_back({ p[0],p[1],p[2] });
         }
         smoothLine_vis_.push_back(tmp);
     }
@@ -681,6 +698,7 @@ void ConnectCandidatePtNode::process() {
     output("longest_path").set(longest_seg_vis_);
     output("longest_id").set(symple_idList_);
     output("smoothLine").set(smoothLine_vis_);
+    output("smoothpoint").set(smoothpoint_vis_);
 
     
 }

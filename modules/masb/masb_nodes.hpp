@@ -63,10 +63,12 @@ namespace geoflow::nodes::mat {
           add_input("normals", typeid(vec3f));
           add_input("ma_coords", typeid(PointCollection));
           add_input("ma_qidx", typeid(vec1i));
+
           add_output("ma_SeparationAng", typeid(vec1f));
           add_output("ma_bisector", typeid(vec3f));
-          add_output("bisec",typeid(LineStringCollection));
+          add_output("bisec_vis",typeid(LineStringCollection));
           add_output("ma_normal", typeid(vec3f));
+          add_output("ma_normal_vis", typeid(LineStringCollection));
       }
       void process();
   };
@@ -229,6 +231,7 @@ namespace geoflow::nodes::mat {
           add_output("longest_path", typeid(LineStringCollection));
           add_output("longest_id",typeid(vec1i));
           add_output("smoothLine", typeid(LineStringCollection));
+          add_output("smoothpoint", typeid(PointCollection));
 
           add_output("bisector_p_vis", typeid(LineStringCollection));
           add_output("bisector_q_vis", typeid(LineStringCollection));
