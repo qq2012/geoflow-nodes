@@ -10,7 +10,11 @@ add_library(masb_nodes STATIC
   ConnectCandidatePt.cpp
   ConnectCandidatePt_smooth.cpp
   ConnectCandidatePt_spline.cpp
+  FindTopology.cpp
 )
+
+include_directories(${EIGEN_INCLUDE_DIR})
+
 target_link_libraries( masb_nodes
   geoflow-core
   masbcpp

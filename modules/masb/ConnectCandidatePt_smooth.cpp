@@ -7,6 +7,7 @@
 #include <CGAL/structure_point_set.h>
 #include <CGAL/Point_set_3.h>
 #include <CGAL/bilateral_smooth_point_set.h>
+#include <CGAL/jet_smooth_point_set.h>
 #include <iostream>
 #include <fstream>
 
@@ -19,9 +20,12 @@ typedef CGAL::First_of_pair_property_map<Point_with_normal>  Point_map;
 typedef CGAL::Second_of_pair_property_map<Point_with_normal> Normal_map;
 
 void ridge::connectCandidatePtSmooth(line &symple_segmentList, line &smoothLine) {
+    std::cout << "start sommthing" << std::endl;
     for (auto &a_line:symple_segmentList) {
+
+        //1--bilateral_smooth
         Pwn_vector pwn_vec;
-        std::cout << "the size of input path: " << a_line.size() << std::endl;
+        //std::cout << "the size of input path: " << a_line.size() << std::endl;
         Point_with_normal pwn;
         Point point(a_line[0][0], a_line[0][1], a_line[0][2]);
         Vector normal = Vector(a_line[0][0] - a_line[1][0], //nx
@@ -40,12 +44,12 @@ void ridge::connectCandidatePtSmooth(line &symple_segmentList, line &smoothLine)
 
 
         // Algorithm parameters
-        int k = 20;                 // size of neighborhood. The bigger the smoother the result will be.
+        int k = 10;                 // size of neighborhood. The bigger the smoother the result will be.
                                      // This value should bigger than 1.
-        double sharpness_angle = 45; // control sharpness of the result.
+        double sharpness_angle = 60; // control sharpness of the result.
                                      // The bigger the smoother the result will be
                                      // must smaller than 90
-        int iter_number = 3;         // number of times the projection is applied
+        int iter_number = 5;         // number of times the projection is applied
 
         for (int i = 0; i < iter_number; ++i) {
             CGAL::bilateral_smooth_point_set<CGAL::Sequential_tag>(
@@ -53,7 +57,7 @@ void ridge::connectCandidatePtSmooth(line &symple_segmentList, line &smoothLine)
                 CGAL::parameters::point_map(CGAL::First_of_pair_property_map<Point_with_normal>()).
                 normal_map(CGAL::Second_of_pair_property_map<Point_with_normal>()).sharpness_angle(sharpness_angle));
         }
-
+        
         masb::PointList a_smooth_line;
         for (auto &pwn_tmp : pwn_vec) {
             auto pt_cgal = pwn_tmp.first;
@@ -63,6 +67,29 @@ void ridge::connectCandidatePtSmooth(line &symple_segmentList, line &smoothLine)
         }
         //std::cout << std::endl;
         smoothLine.push_back(a_smooth_line);
+        //std::cout << "the size of smooth path: " << a_smooth_line.size() << std::endl;
+        
+        /*
+        //2--jet_smooth
+        std::vector<Point> points;
+        points.reserve(a_line.size());
+        for (auto &p : a_line) {
+            Point p_cgal(p[0], p[1], p[2]);
+            points.push_back(p_cgal);
+        }
+
+        const unsigned int nb_neighbors = 8; // default is 24 for real-life point sets
+        CGAL::jet_smooth_point_set<CGAL::Sequential_tag>(points, nb_neighbors);
+
+        masb::PointList a_smooth_line;
+        for (auto &pt_cgal : points) {
+            //std::cout << pt[0] << " " << pt[1] << " " << pt[2] << std::endl;
+            masb::Point pt = masb::Point(pt_cgal[0], pt_cgal[1], pt_cgal[2]);
+            a_smooth_line.push_back(pt);
+        }
+        //std::cout << std::endl;
+        smoothLine.push_back(a_smooth_line);
         std::cout << "the size of smooth path: " << a_smooth_line.size() << std::endl;
+        */
     }
 }

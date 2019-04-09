@@ -53,8 +53,8 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
     for (const auto& e : seg_frequency) {
         auto cur_sheet = e.first;
         auto cur_size = e.second;
-        //if (cur_sheet == 8)
-        //    continue;
+        if (cur_sheet == 0)
+            continue;
         masb::PointList cur_candidate;
         cur_candidate.reserve(cur_size);
         for (int i = 0; i < seg_id.size(); i++) {
@@ -103,7 +103,8 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
         if (boost::num_edges(g) != cur_size * (cur_size - 1) / 2)
             std::cout << "error in adding edge" << std::endl;
         */
-        
+        float maxWeight = 0;
+        int maxWeight_idx1, maxWeight_idx2;
         std::cout << "start connect ridge " << cur_sheet << std::endl;
         //cur_size = 200;
         Graph g(cur_size);
@@ -115,7 +116,13 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
                 E ea = E(i, j);
                 Edge e; bool inserted;
                 boost::tie(e, inserted) = add_edge(ea.first, ea.second, g);
-                weightmap[e] =  Vrui::Geometry::sqrDist(cur_candidate[i], cur_candidate[j]);
+                auto wi = Vrui::Geometry::sqrDist(cur_candidate[i], cur_candidate[j]);
+                weightmap[e] = wi;
+                if (wi > maxWeight) {
+                    maxWeight = wi;
+                    maxWeight_idx1 = i;
+                    maxWeight_idx2 = j;
+                }
             }
         }
         
@@ -167,20 +174,26 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             boost::tie(e, inserted) = add_edge(ea.first, ea.second, g_short);
             weightmap_s[e] = weight[*ei];
         }
+
+
         std::vector<Vertex> p(num_vertices(g_short));
         std::vector<float> d(num_vertices(g_short));
         property_map<Graph, vertex_index_t>::type indexmap = get(vertex_index, g_short);
         //property_map<Graph, edge_weight_t>::type weightmap_s = get(edge_weight, g_short);
-        float maxWeight = 0;
+
+
+
+        /*float maxWeight = 0;
         Vertex maxEnd;
-        Vertex maxStrat;
-        for (std::size_t j = 0; j < cur_size; ++j) {
-            Vertex s = vertex(j, g_short);
+        Vertex maxStart;
+        */
+        //for (std::size_t j = 0; j < cur_size; ++j) {
+            //Vertex s = vertex(j, g_short);
             //dijkstra_shortest_paths(g_short, s, &p[0], &d[0], weightmap_s, indexmap,
             //    std::less<int>(), closed_plus<int>(),
             //    (std::numeric_limits<int>::max)(), 0,
             //    default_dijkstra_visitor());
-            dijkstra_shortest_paths(g_short, s, predecessor_map(&p[0]).distance_map(&d[0]));
+            //dijkstra_shortest_paths(g_short, s, predecessor_map(&p[0]).distance_map(&d[0]));
             /*
             std::cout << "distances and parents:" << std::endl;
             graph_traits < Graph >::vertex_iterator vi, vend;
@@ -191,29 +204,41 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             }
             std::cout << std::endl;
             */
+        /*
             graph_traits < Graph >::vertex_iterator vii, vendd;
             for (tie(vii, vendd) = vertices(g_short); vii != vendd; ++vii) {
                 if (maxWeight < d[*vii]) {
                     maxWeight = d[*vii];
                     maxEnd = *vii;
-                    maxStrat = s;
+                    maxStart = s;
                 }
             }           
         }
-        std::cout << "longest path -- " << maxWeight
-            << " starts at point -- " << indexmap[maxStrat]
-            << " ends at point -- " << indexmap[maxEnd] << "\n";
+        
+        
         //because d,p are modified, need to calculate shortest path again
-        dijkstra_shortest_paths(g_short, maxStrat, predecessor_map(&p[0]).distance_map(&d[0]));
+        */
+
+        //dijkstra_shortest_paths(g_short, maxStart, predecessor_map(&p[0]).distance_map(&d[0]));
        
+
+        Vertex maxStart = vertex(maxWeight_idx1, g_short);
+        Vertex maxEnd = vertex(maxWeight_idx2, g_short);
+
+        std::cout << "longest path -- " << maxWeight
+            << " starts at point -- " << indexmap[maxStart]<<" ("<< maxWeight_idx1<<")"
+            << " ends at point -- " << indexmap[maxEnd] << " (" << maxWeight_idx2 << ")\n";
+
+        dijkstra_shortest_paths(g_short, maxStart, predecessor_map(&p[0]).distance_map(&d[0]));
+
         std::vector< graph_traits< Graph >::vertex_descriptor > path;
         graph_traits< Graph >::vertex_descriptor current = maxEnd;
-
-        while (current != maxStrat) {
+        
+        while (current != maxStart) {
             path.push_back(current);
             current = p[current];
         }
-        path.push_back(maxStrat);
+        path.push_back(maxStart);
         masb::PointList a_line;
         std::vector< graph_traits< Graph >::vertex_descriptor >::iterator it;
         for (it = path.begin(); it != path.end(); ++it) {
@@ -282,5 +307,56 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
 
         */
         
+    }
+}
+void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList &candidate, masb::intList &filter, segment &segmentList) {
+    
+    float filter_thresh = 5.0;
+    float length_thresh = 10;
+
+    kdtree2::KDTree* pc_kdtree;
+    pc_kdtree = new kdtree2::KDTree(PointCloud, true);
+    pc_kdtree->sort_results = true;
+    std::vector<float> dis_list; dis_list.reserve(candidate.size());
+    for (int i = candidate.size() - 1; i >= 0; i--) {
+        kdtree2::KDTreeResultVector neighbours;
+        pc_kdtree->n_nearest(candidate[i], 1, neighbours);
+        dis_list.push_back(neighbours[0].dis);
+        if (neighbours[0].dis > filter_thresh) {
+            filter.push_back(0);
+            candidate.erase(candidate.begin() + i);
+        }
+        else
+            filter.push_back(1);
+    }
+    size_t cur_size = candidate.size();
+    Graph g(cur_size);
+    size_t num_edges = cur_size * (cur_size - 1) / 2;
+    property_map<Graph, edge_weight_t>::type weightmap = get(edge_weight, g);
+    //property_map<Graph, vertex_index_t>::type VertexIndexMap = get(vertex_index, g);
+    for (size_t i = 0; i < cur_size; ++i) {
+        for (size_t j = i + 1; j < cur_size; ++j) {
+            E ea = E(i, j);
+            Edge e; bool inserted;
+            boost::tie(e, inserted) = add_edge(ea.first, ea.second, g);
+            auto wi = Vrui::Geometry::sqrDist(candidate[i], candidate[j]);
+            weightmap[e] = wi;
+        }
+    }
+
+    property_map < Graph, edge_weight_t >::type weight = get(edge_weight, g);
+    std::vector < Edge > spanning_tree;
+
+    auto tmp = std::back_inserter(spanning_tree);
+    kruskal_minimum_spanning_tree(g, tmp);
+    for (std::vector < Edge >::iterator ei = spanning_tree.begin();
+        ei != spanning_tree.end(); ++ei) {
+        if (weight[*ei] < length_thresh) {
+            auto idx_p = source(*ei, g);
+            auto idx_q = target(*ei, g);
+            masb::Point p = candidate[idx_p];
+            masb::Point q = candidate[idx_q];
+            segmentList.push_back(ridge::PointPair(p, q));
+        }
     }
 }

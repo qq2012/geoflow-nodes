@@ -11,7 +11,9 @@ namespace ridge{
     void connectCandidatePt8MST(masb::PointList &PointCloud,masb::PointList &candidate, 
         masb::intList &seg_id, masb::intList &filter, segment &segmentList, masb::intList &idList,
         line &symple_segmentList, masb::intList &symple_idList);
+    void connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList &candidate, masb::intList &filter, segment &segmentList);
     void connectCandidatePtSmooth(line &symple_segmentList, line &smoothLine);
+    void FindTopology(line &smoothLines);
     void connectCandidatePt8Spline(masb::PointList &PointCloud, masb::PointList &candidate,
         masb::intList &seg_id, masb::intList &filter, ridge::line &line_segmentList, masb::intList &idList);
 }

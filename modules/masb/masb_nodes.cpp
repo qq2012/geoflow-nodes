@@ -75,7 +75,6 @@ void ComputeMedialAxisNode::process(){
   output("ma_is_interior").set(ma_is_interior);
 }
 
-
 void ComputeNormalsNode::process(){
   auto point_collection = input("points").get<PointCollection>();
 
@@ -600,7 +599,7 @@ void ConnectCandidatePtNode::process() {
         seg_id.push_back(id);
     }
     masb::intList filter, filter2;
-    ridge::segment segmentList;
+    ridge::segment segmentList, segmentList_nosegid;
     masb::intList idList, idList2;
     ridge::line symple_segmentList;
     ridge::line line_segmentList;
@@ -609,7 +608,9 @@ void ConnectCandidatePtNode::process() {
     
     //ridge::connectCandidatePt8Spline(pointCloud, candidate_r, seg_id,
     //    filter2, line_segmentList, idList2);
-
+    std::cout << "STARTING METHOD 1 -- NO SEG-ID\n";
+    ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter, segmentList_nosegid);
+    std::cout << "STARTING METHOD 2 -- with SEG\n";
     ridge::connectCandidatePt8MST(pointCloud, candidate_r, seg_id,
         filter, segmentList, idList, symple_segmentList, symple_idList);
 
@@ -628,6 +629,16 @@ void ConnectCandidatePtNode::process() {
         tmp.push_back({ s.second[0],s.second[1] ,s.second[2] });
         segment_vis_.push_back(tmp);
     }
+    
+    LineStringCollection segment_nosegid_vis_;
+    segment_nosegid_vis_.reserve(segmentList_nosegid.size());
+    for (auto &s : segmentList_nosegid) {
+        LineString tmp;
+        tmp.push_back({ s.first[0],s.first[1],s.first[2] });
+        tmp.push_back({ s.second[0],s.second[1] ,s.second[2] });
+        segment_nosegid_vis_.push_back(tmp);
+    }
+    
     vec1i idList_;
     idList_.reserve(idList.size());
     for (auto i : idList)
@@ -690,6 +701,7 @@ void ConnectCandidatePtNode::process() {
     }
     output("filter").set(filter_);
     output("ridge").set(segment_vis_);
+    output("ridge_nosegid_vis_").set(segment_nosegid_vis_);
     output("ridgeId").set(idList_);
     output("directon_vis").set(directon_vis_);//directon_vis
     output("directon2_vis").set(directon2_vis_);
