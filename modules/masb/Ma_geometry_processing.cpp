@@ -44,6 +44,7 @@ namespace masb {
                 Point q = (*madata.coords)[madata.ma_qidx[i]];
                 Point c = (*madata.ma_coords)[i];
                 auto cq= q - c;
+                cq.normalize();
                 maGeom_result res = Geom4pt(cp, cq);
                 maGeometry.ma_bisector[i] = res.bisector;
                 maGeometry.ma_SeperationAng[i] = res.SepAng;

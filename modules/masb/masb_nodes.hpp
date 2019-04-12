@@ -204,11 +204,16 @@ namespace geoflow::nodes::mat {
   public:
       using Node::Node;
       void init() {
+          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_smalltest2_r100SepAng15np100_Bis_avg_WithBisector.ply");
+          
           add_output("candidate_r", typeid(PointCollection));
           add_output("directon", typeid(vec3f));
           add_output("seg_id", typeid(vec1i));
           add_output("bisector_p", typeid(vec3f));
           add_output("bisector_q", typeid(vec3f));
+      }
+      void gui() {
+          ImGui::InputText("filepath", &param<std::string>("filepath"));
       }
       void process();
   };
@@ -231,14 +236,14 @@ namespace geoflow::nodes::mat {
           add_output("ridgeId", typeid(vec1i));
           add_output("longest_path", typeid(LineStringCollection));
           add_output("longest_id",typeid(vec1i));
-          add_output("smoothLine", typeid(LineStringCollection));
-          add_output("smoothpoint", typeid(PointCollection));
+          //add_output("smoothLine", typeid(LineStringCollection));
+          //add_output("smoothpoint", typeid(PointCollection));
+          add_output("topology_vis", typeid(LineStringCollection));
 
           add_output("bisector_p_vis", typeid(LineStringCollection));
           add_output("bisector_q_vis", typeid(LineStringCollection));
           add_output("directon_vis", typeid(LineStringCollection));
           add_output("directon2_vis", typeid(LineStringCollection));
-          
       }
       void process();
   };
@@ -246,7 +251,8 @@ namespace geoflow::nodes::mat {
   public:
       using Node::Node;
       void init() {
-          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/OriginalPointCloud.ply");
+          //add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/OriginalPointCloud.ply");
+          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/smallTest2_pointCloud.ply");
           add_param("thinning_factor", (int)50);
 
           add_output("PointCloud", typeid(PointCollection));

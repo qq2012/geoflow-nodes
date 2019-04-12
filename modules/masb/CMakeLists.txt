@@ -9,6 +9,7 @@ add_library(masb_nodes STATIC
   MaPt_in_oneTrace.cpp
   ConnectCandidatePt.cpp
   ConnectCandidatePt_smooth.cpp
+  ConnectCandidatePt_smooth8Polynomials.cpp
   ConnectCandidatePt_spline.cpp
   FindTopology.cpp
 )

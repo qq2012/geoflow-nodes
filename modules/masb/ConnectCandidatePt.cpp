@@ -22,9 +22,9 @@ typedef boost::graph_traits<Graph>::vertex_iterator     VertexIterator;
 void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList &candidate,
     masb::intList &seg_id, masb::intList &filter, ridge::segment &segmentList, masb::intList &idList,
     line &symple_segmentList, masb::intList &symple_idList){
-    
-    float filter_thresh = 5.0;
-
+    ////////////////////////////////////////
+    float filter_thresh = 100.0;
+    ////////////////////////////////////////
     kdtree2::KDTree* pc_kdtree;
     pc_kdtree = new kdtree2::KDTree(PointCloud, true);
     pc_kdtree->sort_results = true;
@@ -309,26 +309,40 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
         
     }
 }
-void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList &candidate, masb::intList &filter, segment &segmentList) {
-    
-    float filter_thresh = 5.0;
-    float length_thresh = 10;
-
+void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList & candidate, masb::intList &filter, segment &segmentList) {
+    /////////////////////////////////////////
+    float filter_thresh = 100.0;
+    float isolate_thresh = 50.0;
+    float length_thresh = 100.0;
+    /////////////////////////////////////////
+    std::cout << "before filter candidate pt -- " << candidate.size() << "\n";
     kdtree2::KDTree* pc_kdtree;
     pc_kdtree = new kdtree2::KDTree(PointCloud, true);
     pc_kdtree->sort_results = true;
+
+    kdtree2::KDTree* candidate_kdtree;
+    candidate_kdtree = new kdtree2::KDTree(candidate, true);
+    candidate_kdtree->sort_results = true;
+
     std::vector<float> dis_list; dis_list.reserve(candidate.size());
     for (int i = candidate.size() - 1; i >= 0; i--) {
-        kdtree2::KDTreeResultVector neighbours;
+        kdtree2::KDTreeResultVector neighbours, neighbours_can;
         pc_kdtree->n_nearest(candidate[i], 1, neighbours);
         dis_list.push_back(neighbours[0].dis);
-        if (neighbours[0].dis > filter_thresh) {
+
+        candidate_kdtree->n_nearest(candidate[i], 2, neighbours_can);
+
+        if (neighbours[0].dis > filter_thresh ||
+            neighbours_can[1].dis>isolate_thresh) {
             filter.push_back(0);
             candidate.erase(candidate.begin() + i);
         }
         else
             filter.push_back(1);
     }
+
+    std::cout << "after filter candidate pt -- " << candidate.size() << "\n";
+
     size_t cur_size = candidate.size();
     Graph g(cur_size);
     size_t num_edges = cur_size * (cur_size - 1) / 2;

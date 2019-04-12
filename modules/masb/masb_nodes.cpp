@@ -485,14 +485,19 @@ void ReadCandidatePtNode::process() {
 }
 
 void ReadCandidatePtWithBisecNode::process() {
+
+    std::string filepath = param<std::string>("filepath");
+    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
+    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
+    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_smalltest2_r100SepAng15np100_Bis_avg_WithBisector.ply";
+
+    std::cout << "start load point cloud\n";
+
     PointCollection candidate_r_;
     vec3f direction_, bisector_p_, bisector_q_;
     vec1i seg_id_;
 
     std::ifstream infile;
-    std::string filepath;
-    filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
-    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
     infile.open(filepath);
     std::string dummyLine;
     int size;
@@ -608,13 +613,18 @@ void ConnectCandidatePtNode::process() {
     
     //ridge::connectCandidatePt8Spline(pointCloud, candidate_r, seg_id,
     //    filter2, line_segmentList, idList2);
-    std::cout << "STARTING METHOD 1 -- NO SEG-ID\n";
-    ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter, segmentList_nosegid);
-    std::cout << "STARTING METHOD 2 -- with SEG\n";
+    
+    std::cout << "STARTING METHOD 1 -- with SEG\n";
     ridge::connectCandidatePt8MST(pointCloud, candidate_r, seg_id,
         filter, segmentList, idList, symple_segmentList, symple_idList);
+    
+    //ridge::connectCandidatePtSmooth(symple_segmentList, smoothLine);
 
-    ridge::connectCandidatePtSmooth(symple_segmentList, smoothLine);
+    ridge::line smoothLines = symple_segmentList;
+    ridge::FindTopology(smoothLines);
+
+    std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
+    ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter, segmentList_nosegid);
 
     vec1i filter_;
     filter_.reserve(filter.size());
@@ -657,7 +667,7 @@ void ConnectCandidatePtNode::process() {
     symple_idList_.reserve(symple_idList.size());
     for (auto i : symple_idList)
         symple_idList_.push_back(i);
-
+    /*
     PointCollection smoothpoint_vis_;
     LineStringCollection smoothLine_vis_;
     smoothLine_vis_.reserve(smoothLine.size());
@@ -668,6 +678,16 @@ void ConnectCandidatePtNode::process() {
             smoothpoint_vis_.push_back({ p[0],p[1],p[2] });
         }
         smoothLine_vis_.push_back(tmp);
+    }
+    */
+    LineStringCollection topology_vis_;
+    topology_vis_.reserve(smoothLines.size());
+    for (auto& a_line : smoothLines) {
+        LineString tmp;
+        for (auto &p : a_line) {
+            tmp.push_back({ p[0],p[1],p[2] });
+        }
+        topology_vis_.push_back(tmp);
     }
 
     LineStringCollection directon_vis_;
@@ -709,8 +729,9 @@ void ConnectCandidatePtNode::process() {
     output("bisector_q_vis").set(bisec_q_vis_);
     output("longest_path").set(longest_seg_vis_);
     output("longest_id").set(symple_idList_);
-    output("smoothLine").set(smoothLine_vis_);
-    output("smoothpoint").set(smoothpoint_vis_);
+    //output("smoothLine").set(smoothLine_vis_);
+    //output("smoothpoint").set(smoothpoint_vis_);
+    output("topology_vis").set(topology_vis_);
 
     
 }
