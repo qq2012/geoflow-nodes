@@ -243,17 +243,46 @@ void MedialSegmentNode::process() {
     params.maxcount = param<int>("maxcount");
     params.method = this->current_method;
 
+    //static const double PI = 3.14159265358979323846264338327950288;
     switch (this->current_method) {
     case masb::bisector:
-        params.bisec_thres = param<float>("bisec_thres");
-        std::cout << "method -- bisector\n"; 
+        params.bisec_thres = cos((param<float>("bisec_thres") / 180.0)*PI);
+        std::cout << "method -- bisector\n"
+            << "bisec_thres " << param<float>("bisec_thres") << "degree\n"
+            << "cos(bisec_thres) " << params.bisec_thres << std::endl;
         break;
-    case masb::radius:
-        params.balloverlap_thres = param<float>("balloverlap_thres"); break;
-    case masb::thirdopt:
-        std::cout << "not ready\n"; break;
+    case masb::spokecross:
+        params.spokecross_thres = cos((param<float>("spokecross_thres") / 180.0)*PI);
+        std::cout << "method -- spokecross\n"
+            << "spokecross_thres " << param<float>("spokecross_thres") << "degree\n"
+            << "cos(spokecross_thres) " << params.spokecross_thres << std::endl;
+        break;
+    case masb::balloverlap:
+        params.balloverlap_thres = param<float>("balloverlap_thres"); 
+        std::cout << "method -- balloverlap\n"
+            << "balloverlap__thres " << params.balloverlap_thres << " scalar." 
+            << std::endl;
+        break;
+    case masb::combinBisecAndSpcros:
+        params.bisec_thres = cos((param<float>("bisec_thres") / 180.0)*PI);
+        params.spokecross_thres = cos((param<float>("spokecross_thres") / 180.0)*PI);
+        std::cout << "method -- combine bisector and spokecross\n"
+            << "bisec_thres " << param<float>("bisec_thres") << "degree\n"
+            << "cos(bisec_thres) " << params.bisec_thres 
+            << "spokecross_thres " << param<float>("spokecross_thres") << "degree\n"
+            << "cos(spokecross_thres) " << params.spokecross_thres
+            << std::endl;
+        break;
+    case masb::combinBallAndSpcros:
+        params.balloverlap_thres = param<float>("balloverlap_thres");
+        params.spokecross_thres = cos((param<float>("spokecross_thres") / 180.0)*PI);
+        std::cout << "method -- combine balloverlap and spokecross\n"
+            << "balloverlap__thres " << params.balloverlap_thres << " scalar\n"
+            << "spokecross_thres " << param<float>("spokecross_thres") << "degree\n"
+            << "cos(spokecross_thres) " << params.spokecross_thres
+            << std::endl;
+        break;
     }
-
     
     masb::intList remaining_idx;
     for (auto& i : remaining_idx_vec1i) {
@@ -313,38 +342,46 @@ void MedialSegmentNode::process() {
     splier.processing(remainingData, remainingGeometry, true, madata_in, maGeometry_in);
     splier.processing(remainingData, remainingGeometry, false, madata_out, maGeometry_out);
 
-    masb::MaSegProcess segmentation;
-    segmentation.processing(params, madata_in, maGeometry_in);
-    auto seg_in_ = segmentation.point_segment_idx;
-    auto seg_all_ = segmentation.point_segment_idx;
-    auto sheet_in_ = segmentation.shape;
-    auto sheet_all_ = segmentation.shape;
+    masb::MaSegProcess segmentation_in, segmentation_out;
+    segmentation_in.processing(params, madata_in, maGeometry_in);
+    auto seg_in_ = segmentation_in.point_segment_idx;
+    auto sheet_in_ = segmentation_in.shape;
 
-    segmentation.processing(params, madata_out, maGeometry_out);
-    auto seg_out_ = segmentation.point_segment_idx;
-    auto sheet_out_ = segmentation.shape;
+    segmentation_out.processing(params, madata_out, maGeometry_out);
+    auto seg_out_ = segmentation_out.point_segment_idx;
+    auto sheet_out_ = segmentation_out.shape;
 
-    seg_all_.insert(seg_all_.end(), segmentation.point_segment_idx.begin(), segmentation.point_segment_idx.end());
-    sheet_all_.insert(sheet_all_.end(), segmentation.shape.begin(), segmentation.shape.end());
-
-    vec1i seg_idx_;
-    for (auto & idx : seg_all_)
-        seg_idx_.push_back(idx);
-
-    PointCollection ma_coords_;
-    ma_coords_.reserve(remainingData.ma_ptsize);
-    for (auto& c : remainingData.ma_coords) {
-        ma_coords_.push_back({ c[0], c[1], c[2] });
+    PointCollection ma_coords_in_;
+    ma_coords_in_.reserve(madata_in.ma_ptsize);
+    for (auto& c : madata_in.ma_coords) {
+        ma_coords_in_.push_back({ c[0], c[1], c[2] });
+    }
+    PointCollection ma_coords_out_;
+    ma_coords_out_.reserve(madata_out.ma_ptsize);
+    for (auto& c : madata_out.ma_coords) {
+        ma_coords_out_.push_back({ c[0], c[1], c[2] });
     }
 
-    output("seg_id").set(seg_idx_);
-    output("sheet_all").set(sheet_all_);
-    output("ma_coords").set(ma_coords_);
-    
+    vec1i seg_in_vec1i, seg_out_vec1i;
+    seg_in_vec1i.reserve(madata_in.ma_ptsize);
+    for (auto& i : seg_in_) {
+        seg_in_vec1i.push_back((int)i);
+    }
+    seg_out_vec1i.reserve(madata_out.ma_ptsize);
+    for (auto& i : seg_out_) {
+        seg_out_vec1i.push_back((int)i);
+    }
+
+
+
     output("madata_in").set(madata_in);
     output("madata_out").set(madata_out);
     output("maGeometry_in").set(maGeometry_in);
     output("maGeometry_out").set(maGeometry_out);
+    output("ma_coords_in").set(ma_coords_in_);
+    output("ma_coords_out").set(ma_coords_out_);
+    output("seg_in_vis").set(seg_in_vec1i);
+    output("seg_out_vis").set(seg_out_vec1i);
     output("seg_in").set(seg_in_);
     output("seg_out").set(seg_out_);
     output("sheet_in").set(sheet_in_);
@@ -487,10 +524,6 @@ void ReadCandidatePtNode::process() {
 void ReadCandidatePtWithBisecNode::process() {
 
     std::string filepath = param<std::string>("filepath");
-    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng15_notAlongBisec_midz_all_WithBisector.ply";
-    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_r45SepAng10_alongBisec_sheet3_8_WithBisector.ply";
-    //filepath = (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_smalltest2_r100SepAng15np100_Bis_avg_WithBisector.ply";
-
     std::cout << "start load point cloud\n";
 
     PointCollection candidate_r_;
@@ -527,17 +560,27 @@ void ReadCandidatePtWithBisecNode::process() {
         float nx = ::atof(elems[4].c_str());
         float ny = ::atof(elems[5].c_str());
         float nz = ::atof(elems[6].c_str());
-        float bpx = ::atof(elems[7].c_str());
-        float bpy = ::atof(elems[8].c_str());
-        float bpz = ::atof(elems[9].c_str());
-        float bqx = ::atof(elems[10].c_str());
-        float bqy = ::atof(elems[11].c_str());
-        float bqz = ::atof(elems[12].c_str());
+        float cpx = ::atof(elems[7].c_str());
+        float cpy = ::atof(elems[8].c_str());
+        float cpz = ::atof(elems[9].c_str());
+        float cqx = ::atof(elems[10].c_str());
+        float cqy = ::atof(elems[11].c_str());
+        float cqz = ::atof(elems[12].c_str());
+
+        masb::Vector cp = { cpx,cpy,cpz };
+        cp.normalize();
+        masb::Vector cq = { cqx,cqy,cqz };
+        cq.normalize();
+        auto b = cp + cq;
+        b.normalize();
+        auto n = Vrui::Geometry::cross(cp, cq);
+        n.normalize();
+
         candidate_r_.push_back({ x,y,z });
         seg_id_.push_back(seg_idx);
-        direction_.push_back({ nx,ny,nz });
-        bisector_p_.push_back({ bpx,bpy,bpz });
-        bisector_q_.push_back({ bqx,bqy,bqz });
+        direction_.push_back({ n[0],n[1],n[2] });
+        bisector_p_.push_back({ cp[0],cp[1],cp[2] });
+        bisector_q_.push_back({ cp[0],cp[1],cp[2] });
         //i++;
     }
     infile.close();
@@ -558,7 +601,187 @@ void ReadCandidatePtWithBisecNode::process() {
     output("bisector_p").set(bisector_p_);
     output("bisector_q").set(bisector_q_);
 }
+void ReadSegmentRestltNode::process() {
+    std::string filepath = param<std::string>("filepath");
+    std::cout << "start load Segment Restlt\n";
 
+    PointCollection ma_coords_;
+    vec1i seg_id_;
+    vec1f radius_, theta_;
+    vec3f cp_, cq_, bisector_, direction_;
+    
+    std::ifstream infile;
+    infile.open(filepath);
+    std::string dummyLine;
+    int size;
+    int i = 0;
+    while (i < 17) {
+        std::getline(infile, dummyLine);
+        if (i == 3) {
+            auto elems = masb::split2nums(dummyLine, ' ');
+            size = ::atof(elems[2].c_str());
+        }
+        i++;
+    }
+
+    ma_coords_.reserve(size);
+    seg_id_.reserve(size);
+    radius_.reserve(size);
+    theta_.reserve(size);
+    cp_.reserve(size);
+    cq_.reserve(size);
+    bisector_.reserve(size);
+    direction_.reserve(size);
+ 
+    std::string numbers;
+    while (!infile.eof()) {
+        std::getline(infile, numbers);
+        auto elems = masb::split2nums(numbers, ' ');
+        float x = ::atof(elems[0].c_str());
+        float y = ::atof(elems[1].c_str());
+        float z = ::atof(elems[2].c_str());
+        int seg_id = ::atof(elems[3].c_str());
+        float r = ::atof(elems[4].c_str());
+        float cpx = ::atof(elems[5].c_str());
+        float cpy = ::atof(elems[6].c_str());
+        float cpz = ::atof(elems[7].c_str());
+        float cqx = ::atof(elems[8].c_str());
+        float cqy = ::atof(elems[9].c_str());
+        float cqz = ::atof(elems[10].c_str());
+        float theta = ::atof(elems[11].c_str());
+
+        masb::Vector cp = { cpx,cpy,cpz };
+        cp.normalize();
+        masb::Vector cq = { cqx,cqy,cqz };
+        cq.normalize();
+        auto b = cp + cq;
+        b.normalize();
+        auto n = Vrui::Geometry::cross(cp, cq);
+        n.normalize();
+
+        ma_coords_.push_back({ x,y,z });
+        seg_id_.push_back(seg_id);
+        radius_.push_back(r);
+        theta_.push_back(theta);
+        cp_.push_back({ cp[0],cp[1],cp[2] });
+        cq_.push_back({ cq[0],cq[1],cq[2] });
+        bisector_.push_back({ b[0],b[1],b[2] });
+        direction_.push_back({ n[0],n[1],n[2] });
+        //i++;
+    }
+    infile.close();
+    if (ma_coords_.size() != size)
+        std::cout << "ma_coords error" << std::endl;
+    if (seg_id_.size() != size)
+        std::cout << "candidate error" << std::endl;
+    if (radius_.size() != size)
+        std::cout << "radius error" << std::endl;
+    if (theta_.size() != size)
+        std::cout << "radius error" << std::endl;
+    if (direction_.size() != size)
+        std::cout << "candidate error" << std::endl;
+    if (bisector_.size() != size)
+        std::cout << "bisector error" << std::endl;
+    if (cp_.size() != size)
+        std::cout << "bisector_p error" << std::endl;
+    if (cq_.size() != size)
+        std::cout << "bisector_q_ error" << std::endl;
+
+    output("ma_coords").set(ma_coords_);
+    output("seg_id").set(seg_id_);
+    output("radius").set(radius_);
+    output("cp").set(cp_);
+    output("cq").set(cq_);
+    output("bisector").set(bisector_);
+    output("directon").set(direction_);
+    output("theta").set(theta_);
+}
+void ReadJunctionPtNode::process() {
+
+    std::string filepath = param<std::string>("filepath");
+    std::cout << "start load JunctionPt\n";
+
+    PointCollection JunctionPt_;
+    ridge::int_pair_vec sheet_sheet_;
+   
+    std::ifstream infile;
+    infile.open(filepath);
+    std::string dummyLine;
+    int size;
+    int i = 0;
+    while (i < 10) {
+        std::getline(infile, dummyLine);
+        if (i == 3) {
+            auto elems = masb::split2nums(dummyLine, ' ');
+            size = ::atof(elems[2].c_str());
+        }
+        i++;
+    }
+    JunctionPt_.reserve(size);
+    sheet_sheet_.reserve(size);
+
+    std::string numbers;
+    while (!infile.eof()) {
+        std::getline(infile, numbers);
+        auto elems = masb::split2nums(numbers, ' ');
+        float x = ::atof(elems[0].c_str());
+        float y = ::atof(elems[1].c_str());
+        float z = ::atof(elems[2].c_str());
+        int i = ::atof(elems[3].c_str());
+        int j = ::atof(elems[4].c_str());
+
+        JunctionPt_.push_back({x,y,z});
+        sheet_sheet_.push_back(std::make_pair(i,j));
+        //int_pair(i,j)
+
+        //i++;
+    }
+    infile.close();
+    if (JunctionPt_.size() != size)
+        std::cout << "Junction Point error" << std::endl;
+    if (sheet_sheet_.size() != size)
+        std::cout << "sheet_sheet error" << std::endl;
+
+    output("ma_coords").set(JunctionPt_);
+    output("sheet-sheet").set(sheet_sheet_);
+}
+void ReadAdjacencyNode::process() {
+    std::string filepath = param<std::string>("filepath");
+    std::cout << "start load Adjacency map\n";
+
+    ridge::int_pair_vec sheet_sheet_;
+
+    std::ifstream infile;
+    infile.open(filepath);
+    std::string dummyLine;
+    int size;
+    int i = 0;
+    while (i < 7) {
+        std::getline(infile, dummyLine);
+        if (i == 3) {
+            auto elems = masb::split2nums(dummyLine, ' ');
+            size = ::atof(elems[2].c_str());
+        }
+        i++;
+    }
+    sheet_sheet_.reserve(size);
+
+    std::string numbers;
+    while (!infile.eof()) {
+        std::getline(infile, numbers);
+        auto elems = masb::split2nums(numbers, ' ');
+        int i = ::atof(elems[0].c_str());
+        int j = ::atof(elems[1].c_str());
+        sheet_sheet_.push_back(std::make_pair(i, j));
+        //int_pair(i,j)
+        //i++;
+    }
+    infile.close();
+    if (sheet_sheet_.size() != size)
+        std::cout << "sheet_sheet error" << std::endl;
+
+    output("sheet-sheet").set(sheet_sheet_);
+}
 void ConnectCandidatePtNode::process() {
 
     auto pointCloud_ptcollection = input("pointCloud").get<PointCollection>();
@@ -567,6 +790,7 @@ void ConnectCandidatePtNode::process() {
     auto seg_id_vec1i = input("seg_id").get<vec1i>();
     auto bisector_p_vec3f = input("bisector_p").get<vec3f>(); 
     auto bisector_q_vec3f = input("bisector_q").get<vec3f>();
+    auto adjacency = input("adjacency").get<ridge::int_pair_vec>();
 
     masb::PointList pointCloud;
     pointCloud.reserve(pointCloud_ptcollection.size());
@@ -621,7 +845,7 @@ void ConnectCandidatePtNode::process() {
     //ridge::connectCandidatePtSmooth(symple_segmentList, smoothLine);
 
     ridge::line smoothLines = symple_segmentList;
-    ridge::FindTopology(smoothLines);
+    ridge::FindTopology(smoothLines, symple_idList, adjacency);
 
     std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
     ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter, segmentList_nosegid);

@@ -116,7 +116,7 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
                 E ea = E(i, j);
                 Edge e; bool inserted;
                 boost::tie(e, inserted) = add_edge(ea.first, ea.second, g);
-                auto wi = Vrui::Geometry::sqrDist(cur_candidate[i], cur_candidate[j]);
+                auto wi = Vrui::Geometry::dist(cur_candidate[i], cur_candidate[j]);
                 weightmap[e] = wi;
                 if (wi > maxWeight) {
                     maxWeight = wi;

@@ -12,6 +12,7 @@ add_library(masb_nodes STATIC
   ConnectCandidatePt_smooth8Polynomials.cpp
   ConnectCandidatePt_spline.cpp
   FindTopology.cpp
+  breaklineValidate.cpp
 )
 
 include_directories(${EIGEN_INCLUDE_DIR})

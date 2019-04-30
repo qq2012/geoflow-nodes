@@ -41,6 +41,7 @@ namespace masb {
                     cp = (*madata.normals)[i];
                 else
                     cp = -(*madata.normals)[i - madata.m];
+                cp.normalize();
                 Point q = (*madata.coords)[madata.ma_qidx[i]];
                 Point c = (*madata.ma_coords)[i];
                 auto cq= q - c;

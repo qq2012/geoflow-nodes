@@ -6,25 +6,26 @@
 
 
 namespace masb{
-  enum METHOD { bisector, radius, thirdopt };
+  enum METHOD { bisector, spokecross, balloverlap, 
+      combinBisecAndSpcros, combinBallAndSpcros};
   using namespace std;
   class MaSeg_power{
   public:
-    float bisec_thres = 10.0;
-    float bisecavg_thres = 2.0;
-    float bisecdiff_thres = 5.0;
-    float theta_thres = 10.0;
-    float secspokecnt_thres = 10;
-    float balloverlap_thres = 10;
-    int k_neib = 15;
-    bool only_interior = true;
-    METHOD method = bisector;
-    int mincount = 10;
-    int maxcount = 1000;
-    float spokecross_thres = 5.0;
-    float seed_radius_thres = 2.0;
-    // mask = None
-    void update();
+      METHOD method;
+      float bisec_thres;// turned into cosin
+      float spokecross_thres;// turned into cosin
+      float seed_radius_thres;// distance
+      float balloverlap_thres;// (r1+r2)/distance12  it is a scalar 
+      int mincount;// number
+      int maxcount;// number
+      int k_neib = 15;//number
+
+      //float bisecavg_thres;// = 2.0;
+      //float bisecdiff_thres;// = 5.0;
+      //float theta_thres;// = 10.0;
+      //float secspokecnt_thres;// = 10;
+      //bool only_interior = true;
+      // mask = None
   };
 
   class MaSegProcess{
@@ -43,6 +44,8 @@ namespace masb{
       inline size_t findseed(size_t initial_seed_idx);
       inline bool if_all_segmented();
       inline bool valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry);
+      inline bool valid_candidate_spokecross(float cosnorm_thres, size_t idx1, size_t idx2, ma_Geometry &maGeometry);
+      inline bool valid_candidate_balloverlap(float balloverlap_thres, size_t idx1, size_t  idx2, mat_data &madata);
       bool validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2, mat_data &madata, ma_Geometry &maGeometry);
       void grow_sheet(MaSeg_power &power,size_t initial_seed_idx, mat_data &madata, ma_Geometry &maGeometry);
  };

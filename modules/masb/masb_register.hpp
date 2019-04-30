@@ -14,6 +14,9 @@ namespace geoflow::nodes::mat {
     R->register_node<ReadCandidatePtNode>("ReadCandidatePtNode");
     R->register_node<ReadCandidatePtWithBisecNode>("ReadCandidatePtWithBisecNode");
     R->register_node<ConnectCandidatePtNode>("ConnectCandidatePtNode");
+    R->register_node<ReadSegmentRestltNode>("ReadSegmentRestltNode");
+    R->register_node<ReadJunctionPtNode>("ReadJunctionPtNode");
+    R->register_node<ReadAdjacencyNode>("ReadAdjacencyNode");
     return R;
   }
 

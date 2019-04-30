@@ -96,8 +96,9 @@ namespace geoflow::nodes::mat {
           add_param("mincount", (int)10);
           add_param("maxcount", (int)1000);
           //add_param("method", "bisec");//why not std::string?????
-          add_param("bisec_thres", (float)10.0);
-          add_param("balloverlap_thres", (float)10);
+          add_param("bisec_thres", (float)5.0);
+          add_param("spokecross_thres", (float)5.0);
+          add_param("balloverlap_thres", (float)5.0);
 
           add_input("remaining_idx", typeid(vec1i));
           add_input("ma_coords", typeid(PointCollection));
@@ -107,23 +108,26 @@ namespace geoflow::nodes::mat {
           add_input("ma_bisector", typeid(vec3f));
           add_input("ma_normal", typeid(vec3f));
 
-          add_output("seg_id", typeid(vec1i));
-          add_output("sheet_all", typeid(masb::Sheet_idx_List));//#########  todo type -- line string clooection
-          add_output("ma_coords", typeid(PointCollection));
           add_output("madata_in", typeid(masb::mat_data));
           add_output("madata_out", typeid(masb::mat_data));
           add_output("maGeometry_in",typeid(masb::ma_Geometry));
           add_output("maGeometry_out", typeid(masb::ma_Geometry));
-          add_output("seg_in", typeid(std::vector<long long int>));
-          add_output("seg_out", typeid(std::vector<long long int>));
+          add_output("ma_coords_in", typeid(PointCollection));
+          add_output("ma_coords_out", typeid(PointCollection));
+          add_output("seg_in", typeid(std::vector<long long int>)); 
+          add_output("seg_out", typeid(std::vector<long long int>)); 
+          add_output("seg_in_vis", typeid(vec1i));
+          add_output("seg_out_vis", typeid(vec1i));
           add_output("sheet_in", typeid(masb::Sheet_idx_List));
           add_output("sheet_out", typeid(masb::Sheet_idx_List));
       }
       void gui() {
-          ImGui::SliderInt("mincount", &param<int>("mincount"), 5, 100);
+          ImGui::SliderInt("mincount", &param<int>("mincount"), 5, 200);
           ImGui::SliderInt("maxcount", &param<int>("maxcount"), 100, 2000);
 
-          const char* items[] = { "bisector", "radius","thirdopt" };
+          const char* items[] = { "bisector", "spokecross","balloverlap",
+              "combinBisecAndSpcros","combinBallAndSpcros"};
+
           static const char* item_current = items[0];            // Here our selection is a single pointer stored outside the object.
           if (ImGui::BeginCombo("segmentation method", item_current)) // The second parameter is the label previewed before opening the combo.
           {
@@ -137,9 +141,13 @@ namespace geoflow::nodes::mat {
                   if (item_current == items[0])
                       current_method = masb::bisector;
                   else if (item_current == items[1])
-                      current_method = masb::radius;
+                      current_method = masb::spokecross;
                   else if (item_current == items[2])
-                      current_method = masb::thirdopt;
+                      current_method = masb::balloverlap;
+                  else if (item_current == items[3])
+                      current_method = masb::combinBisecAndSpcros;
+                  else if (item_current == items[4])
+                      current_method = masb::combinBallAndSpcros;
                   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
               }
               ImGui::EndCombo();
@@ -149,11 +157,18 @@ namespace geoflow::nodes::mat {
               ImGui::SliderFloat("bisec_thres", &param<float>("bisec_thres"), 0, 90);
           }
           else if (item_current == items[1]) {
-              ImGui::SliderFloat("balloverlap_thres", &param<float>("balloverlap_thres"), 0, 100);
-              ImGui::Text("it is time for radius");
+              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 90);
           }
           else if (item_current == items[2]) {
-              ImGui::Text("it is time for third opt");
+              ImGui::SliderFloat("balloverlap_thres", &param<float>("balloverlap_thres"), 0, 100);
+          }
+          else if (item_current == items[3]) {
+              ImGui::SliderFloat("bisec_thres", &param<float>("bisec_thres"), 0, 90);
+              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 90);
+          }
+          else if (item_current == items[4]) {
+              ImGui::SliderFloat("balloverlap_thres", &param<float>("balloverlap_thres"), 0, 100);
+              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 90);
           }
       }
       void process();
@@ -204,7 +219,7 @@ namespace geoflow::nodes::mat {
   public:
       using Node::Node;
       void init() {
-          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_smalltest2_r100SepAng15np100_Bis_avg_WithBisector.ply");
+          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/candidatept_smalltest2_r100SepAng15np500_Bis_avg_all_WithBisector.ply");
           
           add_output("candidate_r", typeid(PointCollection));
           add_output("directon", typeid(vec3f));
@@ -217,10 +232,80 @@ namespace geoflow::nodes::mat {
       }
       void process();
   };
+  class ReadSegmentRestltNode :public Node{
+  public:
 
+      using Node::Node;
+      void init() {
+          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/samllTest2_segmentResult.ply");
+
+          add_output("ma_coords", typeid(PointCollection));
+          add_output("seg_id", typeid(vec1i));
+          add_output("radius", typeid(vec1f));
+          add_output("cp", typeid(vec3f));
+          add_output("cq", typeid(vec3f));
+          add_output("bisector", typeid(vec3f));
+          add_output("directon", typeid(vec3f));
+          add_output("theta", typeid(vec1f));
+      }
+      void gui() {
+          ImGui::InputText("filepath", &param<std::string>("filepath"));
+      }
+      void process();
+  };
+  class ReadJunctionPtNode :public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/junctionPt_smalltest2_.ply");
+
+          add_output("ma_coords", typeid(PointCollection));
+          add_output("sheet-sheet", typeid(ridge::int_pair_vec));
+      }
+      void gui() {
+          ImGui::InputText("filepath", &param<std::string>("filepath"));
+      }
+      void process();
+  };
+  class ReadAdjacencyNode : public Node{
+  public:
+      using Node::Node;
+      void init() {
+          add_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/Adjacency_smalltest2_.txt");
+
+          add_output("sheet-sheet", typeid(ridge::int_pair_vec));
+      }
+      void gui() {
+          ImGui::InputText("filepath", &param<std::string>("filepath"));
+      }
+      void process();
+
+  };
+
+  class SegmentRestlt_TraceNode :public Node {
+  public:
+
+      using Node::Node;
+      void init() {
+          add_input("ma_coords", typeid(PointCollection));
+          add_input("seg_id", typeid(vec1i));
+          add_input("radius", typeid(vec1f));
+          add_input("cp", typeid(vec3f));
+          add_input("cq", typeid(vec3f));
+          add_input("bisector", typeid(vec3f));
+          add_input("directon", typeid(vec3f));
+          add_input("theta", typeid(vec1f));
+
+          add_output("madata", typeid(masb::mat_data));
+          add_output("maGeometry", typeid(masb::ma_Geometry));
+          add_output("sheets", typeid(masb::Sheet_idx_List));
+      }
+      void process();
+  };
   class ConnectCandidatePtNode :public Node {
   public:
       //masb::_pram params;
+
       using Node::Node;
       void init() {
           add_input("pointCloud", typeid(PointCollection));
@@ -229,6 +314,7 @@ namespace geoflow::nodes::mat {
           add_input("seg_id", typeid(vec1i));
           add_input("bisector_p", typeid(vec3f));
           add_input("bisector_q", typeid(vec3f));
+          add_input("adjacency", typeid(ridge::int_pair_vec));
 
           add_output("filter", typeid(vec1i));
           add_output("ridge", typeid(LineStringCollection));

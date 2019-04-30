@@ -20,8 +20,7 @@ int main(int ac, const char * av[])
     auto cgal = gfn::cgal::create_register();
     auto mat = gfn::mat::create_register();
     auto las = gfn::las::create_register();
-
-    //auto las_loader_node = N.create_node(las, "LASLoader", { 100,100 });
+    /*
     auto PLY_loaderNode = N.create_node(mat, "PLYLoaderNode", { 100,100 });
     //auto readcandidatept_node = N.create_node(mat, "ReadCandidatePtNode", { 400,100 });
     auto readWithBisec = N.create_node(mat, "ReadCandidatePtWithBisecNode", { 400,100 });
@@ -31,9 +30,9 @@ int main(int ac, const char * av[])
     connect(readWithBisec->output("seg_id"), connect_noed->input("seg_id"));
     connect(readWithBisec->output("bisector_p"), connect_noed->input("bisector_p"));
     connect(readWithBisec->output("bisector_q"), connect_noed->input("bisector_q"));
-
-    /*
-    las_loader_node->set_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/CA_pressure_ridge_dedup.las");
+    
+    auto las_loader_node = N.create_node(las, "LASLoader", { 100,100 });
+    las_loader_node->set_param("filepath", (std::string) "C:/Users/wangq/Downloads/thesis/p3_data/samllTest2.las");
     auto normals_node = N.create_node(mat, "ComputeNormalsNode", { 400,0 });
     auto mat_node = N.create_node(mat, "ComputeMedialAxisNode", { 400,200 });
     auto geometry_node = N.create_node(mat, "MaGeometryNode", { 700,50 });

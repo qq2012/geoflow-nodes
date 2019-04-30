@@ -5,28 +5,6 @@
 using namespace masb;
 using namespace std;
 
-//static const double PI = 3.14159265358979323846264338327950288;
-
-void MaSeg_power::update() {
-    this->bisec_thres = cos((this->bisec_thres / 180.0)*PI);
-    this->bisecavg_thres = cos((this->bisecavg_thres / 180.0)*PI);
-    this->bisecdiff_thres = cos((this->bisecdiff_thres / 180.0)*PI);
-    this->theta_thres = this->theta_thres / 180.0 *PI;
-    this->spokecross_thres = cos((this->spokecross_thres / 180.0)*PI);
-    /*
-    self.p_bisecthres = math.cos((self.p['bisec_thres'] / 180.0) * math.pi)
-    self.p_bisecavgthres = math.cos((self.p['bisecavg_thres'] / 180.0) * math.pi)
-    self.p_bisecdiffthres = math.cos((self.p['bisecdiff_thres'] / 180.0) * math.pi)
-    self.p_normalthres = math.cos((5.0 / 180.0) * math.pi)
-    self.p_thetathres_1 = (self.p['theta_thres'] / 180.0) * math.pi # during bisect growing
-    self.p_thetathres_2 = (self.p['theta_thres'] / 180.0) * math.pi # during theta growing
-    self.p_k = self.p['k']
-    self.p_balloverlap_thres = self.p['balloverlap_thres']
-    self.p_mincount = self.p['mincount']
-    self.p_spokecross_thres = math.cos((self.p['spokecross_thres'] / 180.0) * math.pi)
-   */
-}
-
 inline bool MaSegProcess::if_all_segmented() {
     if (std::find(point_segment_idx.begin(), point_segment_idx.end(), -1) != point_segment_idx.end())
         return false;/* point_segment_idx -- contains -1 */
@@ -59,10 +37,37 @@ inline bool MaSegProcess::valid_candidate_bisec(float bisec_thres,size_t idx1, s
     return bisec1 * bisec2 > bisec_thres;
 }
 
+inline bool MaSegProcess::valid_candidate_spokecross(float spokecross_thres, size_t idx1, size_t idx2, ma_Geometry &maGeometry) {
+    Vector crosnorm1 = maGeometry.ma_normal[idx1];
+    Vector crosnorm2 = maGeometry.ma_normal[idx2];
+    return crosnorm1 * crosnorm2 > spokecross_thres;
+}
+
+inline bool MaSegProcess::valid_candidate_balloverlap(float balloverlap_thres, size_t idx1, size_t  idx2, mat_data &madata) {
+    Point p1 = madata.ma_coords[idx1];
+    Point p2 = madata.ma_coords[idx2];
+    auto dis = Vrui::Geometry::dist(p1, p2);
+    auto r1 = madata.ma_radius[idx1];
+    auto r2 = madata.ma_radius[idx2];
+    return (r1 + r2) / dis > balloverlap_thres;
+
+}
+
 bool MaSegProcess::validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2,
     mat_data &madata, ma_Geometry &maGeometry) {
     if (power.method == masb::bisector)
         return valid_candidate_bisec(power.bisec_thres,idx1,idx2, maGeometry);
+    if (power.method == masb::spokecross)
+        return valid_candidate_spokecross(power.spokecross_thres, idx1, idx2, maGeometry);
+    if (power.method == masb::balloverlap)
+        return valid_candidate_balloverlap(power.balloverlap_thres, idx1, idx2, madata);
+    if (power.method == masb::combinBisecAndSpcros)
+        return valid_candidate_bisec(power.bisec_thres, idx1, idx2, maGeometry)&&
+        valid_candidate_spokecross(power.spokecross_thres, idx1, idx2, maGeometry);
+    if (power.method == masb::combinBallAndSpcros)
+        return valid_candidate_balloverlap(power.balloverlap_thres, idx1, idx2, madata)&&
+        valid_candidate_spokecross(power.spokecross_thres, idx1, idx2, maGeometry);
+
     else
         std::cout << "not having this segmentation method yet, plz check.\n";
 }
@@ -119,7 +124,8 @@ void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx,
 }
 
 void MaSegProcess::processing(MaSeg_power &power,mat_data &madata,ma_Geometry &maGeometry) {
-    power.update();
+    //power.update();
+    std::cout << "min num is " << power.mincount << std::endl;
     this->size = madata.ma_ptsize;
     point_segment_idx.resize(size, -1);
     if (madata.kdtree_ma_coords == NULL)
