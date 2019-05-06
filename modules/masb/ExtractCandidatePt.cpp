@@ -6,8 +6,10 @@ inline bool ExtractCandidatePt::validateCandidate(float deviationAng_thres, Vect
 }
 
 void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, mat_data &madata,
-    ma_Geometry &maGeometry, Sheet_idx_List &sheets) {
-    for (auto &a_sheet : sheets) {
+    ma_Geometry &maGeometry, Sheet_idx_List &sheets, PointCloud &PointCloud) {
+    for (int id = 0; id < sheets.size();++id){
+    //for(auto &a_sheet : sheets) {
+        auto a_sheet = sheets[id];
         masb::idx_filter filter;
         mat_data maSheetData;
         ma_Geometry masheetGeometry;
@@ -65,8 +67,6 @@ void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, mat_data &m
                 }
             }
         }
-        PointList candidatept_r, candidatept_cos;
-        VectorList candidatept_dir;
         for (auto idx : candidatept_idx) {
             auto pt = maSheetData.ma_coords[idx];
             auto r = maSheetData.ma_radius[idx];
@@ -74,15 +74,29 @@ void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, mat_data &m
             auto SepAng = masheetGeometry.ma_SeperationAng[idx];
             //auto vec = bisec * r;
             //auto can = pt + bisec * r;
-            candidatept_r.push_back(pt + bisec * r);
+            //candidatept_r.push_back(pt + bisec * r);
             //auto can = pt + bisec * (r / cos(SepAng / 2));
-            candidatept_cos.push_back(pt + bisec * (r / cos(SepAng / 2)));
-            candidatept_dir.push_back(masheetGeometry.ma_normal[idx]);
+            //candidatept_cos.push_back(pt + bisec * (r / cos(SepAng / 2)));
+            //candidatept_dir.push_back(masheetGeometry.ma_normal[idx]);
+            this->can_pt_r.push_back(pt + bisec * r);
+            this->can_pt_cos.push_back(pt + bisec * (r / cos(SepAng / 2)));
+            //PointList can_pt_bisector_avg;
+            this->seg_id.push_back(id);// seg_id;
+            this->direction.push_back(masheetGeometry.ma_normal[idx]);
+
+            //cp only works for interior have bug for exterior MAT
+            auto ground_pt_id = a_sheet[idx];
+            this->cp.push_back(PointCloud.normals[ground_pt_id]);
+            Point q = PointCloud.coords[maSheetData.ma_qidx[idx]];
+            auto vcq = q - pt;
+            vcq.normalize();
+            this->cq.push_back(vcq);
+
         }
-        this->candidate_cos.push_back(candidatept_cos);
-        this->candidate_r.push_back(candidatept_r);
-        this->candidate_dir.push_back(candidatept_dir);
-        this->candidate_size += candidatept_r.size();
+        //this->candidate_cos.push_back(candidatept_cos);
+        //this->candidate_r.push_back(candidatept_r);
+        //this->candidate_dir.push_back(candidatept_dir);
+        //this->candidate_size += candidatept_r.size();
     }
 
 }

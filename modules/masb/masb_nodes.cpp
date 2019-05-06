@@ -237,7 +237,7 @@ void MedialSegmentNode::process() {
     auto ma_SeparationAng_vec1f = input("ma_SeparationAng").get<vec1f>();
     auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
     auto ma_normal_vec3f = input("ma_normal").get<vec3f>();
-    
+
     masb::MaSeg_power params;
     params.mincount = param<int>("mincount");
     params.maxcount = param<int>("maxcount");
@@ -291,7 +291,7 @@ void MedialSegmentNode::process() {
 
     masb::ma_data madata;
     masb::mat_data remainingData;
-    madata.m = ma_coords_collection.size() / 2;
+    madata.m = ma_coords_collection.size()/2;
     masb::PointList ma_coords;
     ma_coords.reserve(madata.m*2);
     for (auto& p : ma_coords_collection) {
@@ -311,6 +311,7 @@ void MedialSegmentNode::process() {
     madata.ma_radius = &ma_radius;
     madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????
     
+
     masb::ma_Geometry maGeometry, remainingGeometry;
     masb::floatList ma_SeparationAng;
     ma_SeparationAng.reserve(madata.m * 2);
@@ -443,28 +444,93 @@ void ExtractCandidatePtNode::process() {
     auto maGeometry = input("maGeometry").get<masb::ma_Geometry>();
     auto sheets = input("sheets").get<masb::Sheet_idx_List>();
 
+    auto pointcloud = input("point cloud coords").get<PointCollection>();
+    auto pointcloud_norm = input("point cloud normal").get<vec3f>();
+
     masb::ExtractCandidatePt_pram  params;
     params.SearchRadius = param<float>("SearchRadius");
-    masb::ExtractCandidatePt extractor;
-    extractor.processing(params, madata, maGeometry, sheets);
 
+    masb::PointCloud PointCloud;
+    masb::PointList pc_coords_;
+    pc_coords_.reserve(madata.m);
+    for (auto &p : pointcloud)
+        pc_coords_.push_back(masb::Point(p.data()));
+    masb::VectorList pc_normals_;
+    pc_normals_.reserve(madata.m);
+    for (auto &v : pointcloud_norm)
+        pc_normals_.push_back(masb::Vector(v.data()));
+    PointCloud.coords = pc_coords_;
+    PointCloud.normals = pc_normals_;
+
+
+
+    masb::ExtractCandidatePt extractor;
+    extractor.processing(params, madata, maGeometry, sheets, PointCloud);
+
+    PointCollection candidate_r_, candidate_cos_;
+    //PointCollection can_pt_bisector_avg_;
+    vec1i seg_id_;
+    vec3f spokV_cp_, spokV_cq_, direction_;
+
+    int s = extractor.can_pt_r.size();
+    candidate_r_.reserve(s);
+    candidate_cos_.reserve(s);
+    seg_id_.reserve(s);
+    spokV_cp_.reserve(s);
+    spokV_cq_.reserve(s);
+    direction_.reserve(s);
+    for (int i = 0; i < s; ++i) {
+        if (extractor.seg_id[i] == 0)
+            continue;
+        auto c1 = extractor.can_pt_r[i];
+        candidate_r_.push_back({ c1[0],c1[1],c1[2] });
+        auto c2 = extractor.can_pt_cos[i];
+        candidate_cos_.push_back({ c2[0],c2[1,c2[2]] });
+        seg_id_.push_back(extractor.seg_id[i]);
+        auto v1 = extractor.cp[i];
+        spokV_cp_.push_back({ v1[0],v1[1],v1[2] });
+        auto v2 = extractor.cq[i];
+        spokV_cq_.push_back({ v2[0],v2[1],v2[2] });
+        auto d = extractor.direction[i];
+        direction_.push_back({ d[0],d[1],d[2] });
+    }
+    output("candidate_r").set(candidate_r_);
+    output("candidate_cos").set(candidate_cos_);
+    output("seg_id").set(seg_id_);
+    output("spoke_cp").set(spokV_cp_);
+    output("spoke_cq").set(spokV_cq_);
+    output("direction").set(direction_);
+
+    /*
     PointCollection candidate_r_, candidate_cos_;
     candidate_r_.reserve(extractor.candidate_size);
     candidate_cos_.reserve(extractor.candidate_size);
 
     int i = 0;
     for (auto canInSheet : extractor.candidate_r) {
+        if (i == 0) {
+            i++;
+            continue;
+        }
         for (auto p : canInSheet) {
             candidate_r_.push_back({ p[0], p[1], p[2] });
         }
+        i++;
     }
+    int j = 0;
     for (auto canInSheet : extractor.candidate_cos) {
+        if (j == 0) {
+            j++;
+            continue;
+        }
         for (auto p : canInSheet) {
             candidate_cos_.push_back({ p[0], p[1], p[2] });
         }
+        j++;
     }
     output("candidate_r").set(candidate_r_);
     output("candidate_cos").set(candidate_cos_);
+    */
 }
 void ReadCandidatePtNode::process() {
     PointCollection candidate_r_;
@@ -609,6 +675,7 @@ void ReadSegmentRestltNode::process() {
     vec1i seg_id_;
     vec1f radius_, theta_;
     vec3f cp_, cq_, bisector_, direction_;
+    LineStringCollection direction_vis_;
     
     std::ifstream infile;
     infile.open(filepath);
@@ -632,6 +699,7 @@ void ReadSegmentRestltNode::process() {
     cq_.reserve(size);
     bisector_.reserve(size);
     direction_.reserve(size);
+    direction_vis_.reserve(size);
  
     std::string numbers;
     while (!infile.eof()) {
@@ -650,6 +718,8 @@ void ReadSegmentRestltNode::process() {
         float cqz = ::atof(elems[10].c_str());
         float theta = ::atof(elems[11].c_str());
 
+
+
         masb::Vector cp = { cpx,cpy,cpz };
         cp.normalize();
         masb::Vector cq = { cqx,cqy,cqz };
@@ -667,6 +737,10 @@ void ReadSegmentRestltNode::process() {
         cq_.push_back({ cq[0],cq[1],cq[2] });
         bisector_.push_back({ b[0],b[1],b[2] });
         direction_.push_back({ n[0],n[1],n[2] });
+        LineString temp;
+        temp.push_back({ x,y,z });
+        temp.push_back({ x+ n[0],y+ n[1],z+ n[2] });
+        direction_vis_.push_back({ temp });
         //i++;
     }
     infile.close();
@@ -695,6 +769,7 @@ void ReadSegmentRestltNode::process() {
     output("bisector").set(bisector_);
     output("directon").set(direction_);
     output("theta").set(theta_);
+    output("direction_vis").set(direction_vis_);
 }
 void ReadJunctionPtNode::process() {
 
@@ -847,8 +922,8 @@ void ConnectCandidatePtNode::process() {
     ridge::line smoothLines = symple_segmentList;
     ridge::FindTopology(smoothLines, symple_idList, adjacency);
 
-    std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
-    ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter, segmentList_nosegid);
+    //std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
+    //ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter2, segmentList_nosegid);
 
     vec1i filter_;
     filter_.reserve(filter.size());

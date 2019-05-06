@@ -348,6 +348,9 @@ void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::Po
     size_t num_edges = cur_size * (cur_size - 1) / 2;
     property_map<Graph, edge_weight_t>::type weightmap = get(edge_weight, g);
     //property_map<Graph, vertex_index_t>::type VertexIndexMap = get(vertex_index, g);
+    /////////////////////////////////////////////////////////////
+    //       large dataset have unknown bug here!!!!!!!!!!!!!!
+    /////////////////////////////////////////////////////////////
     for (size_t i = 0; i < cur_size; ++i) {
         for (size_t j = i + 1; j < cur_size; ++j) {
             E ea = E(i, j);
@@ -355,6 +358,7 @@ void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::Po
             boost::tie(e, inserted) = add_edge(ea.first, ea.second, g);
             auto wi = Vrui::Geometry::sqrDist(candidate[i], candidate[j]);
             weightmap[e] = wi;
+            std::cout << "i,j---" << i << "--" << j << std::endl;
         }
     }
 

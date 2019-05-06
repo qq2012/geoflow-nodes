@@ -198,8 +198,15 @@ namespace geoflow::nodes::mat {
           add_input("maGeometry", typeid(masb::ma_Geometry));
           add_input("sheets", typeid(masb::Sheet_idx_List));
 
+          add_input("point cloud coords", typeid(PointCollection));
+          add_input("point cloud normal", typeid(vec3f));
+
           add_output("candidate_r", typeid(PointCollection));
           add_output("candidate_cos", typeid(PointCollection));
+          add_output("seg_id",typeid(vec1i));
+          add_output("spoke_cp",typeid(vec3f));
+          add_output("spoke_cq", typeid(vec3f));
+          add_output("direction", typeid(vec3f));
       }
       void process();
   };
@@ -247,6 +254,7 @@ namespace geoflow::nodes::mat {
           add_output("bisector", typeid(vec3f));
           add_output("directon", typeid(vec3f));
           add_output("theta", typeid(vec1f));
+          add_output("direction_vis",typeid(LineStringCollection));
       }
       void gui() {
           ImGui::InputText("filepath", &param<std::string>("filepath"));

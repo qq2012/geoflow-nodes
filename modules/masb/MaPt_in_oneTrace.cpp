@@ -42,7 +42,7 @@ size_tList MaPt_in_oneTrace::find_trace(pt_Trace_pram&power, size_t &pt_idx,
 }
 void MaPt_in_oneTrace::processing(pt_Trace_pram& power, mat_data &madata, ma_Geometry &maGeometry, Sheet_idx_List &sheets) {
     //params.update();
-    std::cout << "there are " << sheets.size() << " sheets\n";
+    std::cout << "MaPt_in_oneTrace::there are " << sheets.size() << " sheets\n";
     size_tList sheet_idx;
     size_t seg_id = 0;
     this->candidate_r.resize(sheets.size());
