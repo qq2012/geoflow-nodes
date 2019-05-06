@@ -2,6 +2,10 @@
 #include <iostream>
 #include <cmath>
 #include <stack>
+#include <numeric>  
+#include <random>
+#include <algorithm> 
+
 using namespace masb;
 using namespace std;
 
@@ -10,6 +14,13 @@ inline bool MaSegProcess::if_all_segmented() {
         return false;/* point_segment_idx -- contains -1 */
     else
         return true;/* point_segment_idx -- does not contain -1 */
+}
+void  MaSegProcess::remaining_idx_remove_idx(long long int id) {
+    std::vector<long long int>::iterator it = std::find((*remaining_idx).begin(), (*remaining_idx).end(), id);
+    if (it == (*remaining_idx).end())
+        std::cout << "remaining_idx_remove_idx -- error " << std::endl;
+    int index = std::distance((*remaining_idx).begin(), it);
+    (*remaining_idx).erase((*remaining_idx).begin() + index);
 }
 
 inline size_t MaSegProcess::findseed8r(float seed_radius_thres,floatList *ma_radius) {
@@ -25,7 +36,13 @@ inline size_t MaSegProcess::findseed(size_t initial_seed_idx) {
             return i;
     }
 }
-
+size_t MaSegProcess::findseed_random() {
+    std::random_device rd; // obtain a random number from hardware
+    std::mt19937 eng(rd()); // seed the generator
+    std::uniform_int_distribution<> distr(0, (*remaining_idx).size()-1); // define the range
+    auto random_id = distr(eng);
+    return (*remaining_idx)[random_id];
+}
 inline bool MaSegProcess::valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry) {
     Vector bisec1 = maGeometry.ma_bisector[idx1];
     Vector bisec2 = maGeometry.ma_bisector[idx2];
@@ -85,6 +102,7 @@ void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx,
     seeds.push(initial_seed_idx);
     idx_in_sheet.push_back(initial_seed_idx);
     point_segment_idx[initial_seed_idx] = sheet_counter;
+    //remaining_idx_remove_idx(initial_seed_idx);
 
     while (!seeds.empty()) {
         size_t seed_idx = seeds.top();
@@ -120,24 +138,34 @@ void MaSegProcess::grow_sheet(MaSeg_power &power,size_t initial_seed_idx,
         shape.push_back(idx_in_sheet);
         shape_inout.push_back(in_out_flag);
         sheet_counter++;
+        //for (size_t &idx : idx_in_sheet) {
+        //    remaining_idx_remove_idx(idx);
+        //}
     }
 }
 
 void MaSegProcess::processing(MaSeg_power &power,mat_data &madata,ma_Geometry &maGeometry) {
     //power.update();
-    std::cout << "min num is " << power.mincount << std::endl;
+    std::cout << "MaSegProcess::processing -- min num is " << power.mincount << std::endl;
     this->size = madata.ma_ptsize;
     point_segment_idx.resize(size, -1);
+
+    //std::vector<long long int> v(size); // vector with 100 ints.
+    //std::iota(std::begin(v), std::end(v), 0); // Fill with 0, 1, ..., 99.
+    //*remaining_idx = v;
+
     if (madata.kdtree_ma_coords == NULL)
         madata.kdtree_ma_coords = new kdtree2::KDTree(madata.ma_coords, true);
     madata.kdtree_ma_coords->sort_results = true;
     size_t initial_seed_idx = 0;
+    //size_t initial_seed_idx = findseed_random();
     while (1) {
         grow_sheet(power,initial_seed_idx,madata, maGeometry);
         if (if_all_segmented())
             break;
         else
             initial_seed_idx = findseed(initial_seed_idx);
+            //initial_seed_idx = findseed_random();
     }
     std::cout << "segmentation finished\n";
 }

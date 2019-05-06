@@ -21,13 +21,13 @@ namespace masb {
     */
     class ExtractCandidatePt_pram {
     public:
-        std::string method = "fixe radius";
-        int k_neighbours;
-        float SearchRadius = 45;
-        float deviationAng_thres = 15.0;
-        ExtractCandidatePt_pram() {
-            this->deviationAng_thres = cos((this->deviationAng_thres / 180.0)*PI);
-        }
+        //std::string method = "fixe radius";
+        //int k_neighbours;
+        float SearchRadius;// = 45;
+        float deviationAng_thres;// = 15.0; cosin value
+        //ExtractCandidatePt_pram() {
+        //    this->deviationAng_thres = cos((this->deviationAng_thres / 180.0)*PI);
+        //}
     };
     class ExtractCandidatePt {
     public:

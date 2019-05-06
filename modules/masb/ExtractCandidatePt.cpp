@@ -7,6 +7,9 @@ inline bool ExtractCandidatePt::validateCandidate(float deviationAng_thres, Vect
 
 void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, mat_data &madata,
     ma_Geometry &maGeometry, Sheet_idx_List &sheets, PointCloud &PointCloud) {
+
+    std::cout << "cos(deviationAng_thres) is " << power.deviationAng_thres << std::endl;
+
     for (int id = 0; id < sheets.size();++id){
     //for(auto &a_sheet : sheets) {
         auto a_sheet = sheets[id];
@@ -91,6 +94,18 @@ void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, mat_data &m
             auto vcq = q - pt;
             vcq.normalize();
             this->cq.push_back(vcq);
+
+            kdtree2::KDTreeResultVector neighbours_bis_avg;
+            maSheetData.kdtree_ma_coords->n_nearest(pt, 20, neighbours_bis_avg);
+            float r_sum = 0;
+            for (auto &n : neighbours_bis_avg) {
+                r_sum += maSheetData.ma_radius[n.idx];
+            }
+            Vector bis_avg = Vector(0.0, 0.0, 0.0);
+            for (auto &n : neighbours_bis_avg) {
+                bis_avg = bis_avg + (maSheetData.ma_radius[n.idx] / r_sum) * masheetGeometry.ma_bisector[n.idx];
+            }
+            this->can_pt_bisector_avg.push_back(pt + bis_avg * r);
 
         }
         //this->candidate_cos.push_back(candidatept_cos);

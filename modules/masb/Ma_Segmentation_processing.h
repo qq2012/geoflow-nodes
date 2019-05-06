@@ -38,10 +38,13 @@ namespace masb{
       void processing(MaSeg_power &power, mat_data &madata, ma_Geometry &maGeometry);
 
   private:
+      vector<long long int> *remaining_idx;
       size_t sheet_counter = 1;
       size_t size;
       inline size_t findseed8r(float seed_radius_thres,floatList *ma_radius);
       inline size_t findseed(size_t initial_seed_idx);
+      size_t findseed_random();
+      void  remaining_idx_remove_idx(long long int id);
       inline bool if_all_segmented();
       inline bool valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry);
       inline bool valid_candidate_spokecross(float cosnorm_thres, size_t idx1, size_t idx2, ma_Geometry &maGeometry);

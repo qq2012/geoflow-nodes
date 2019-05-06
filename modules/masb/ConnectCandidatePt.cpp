@@ -23,7 +23,7 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
     masb::intList &seg_id, masb::intList &filter, ridge::segment &segmentList, masb::intList &idList,
     line &symple_segmentList, masb::intList &symple_idList){
     ////////////////////////////////////////
-    float filter_thresh = 100.0;
+    float filter_thresh = 1.0;
     ////////////////////////////////////////
     kdtree2::KDTree* pc_kdtree;
     pc_kdtree = new kdtree2::KDTree(PointCloud, true);
@@ -306,7 +306,6 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
         std::cout << std::endl;
 
         */
-        
     }
 }
 void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList & candidate, masb::intList &filter, segment &segmentList) {

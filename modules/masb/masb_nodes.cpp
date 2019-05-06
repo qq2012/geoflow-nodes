@@ -449,6 +449,9 @@ void ExtractCandidatePtNode::process() {
 
     masb::ExtractCandidatePt_pram  params;
     params.SearchRadius = param<float>("SearchRadius");
+    params.deviationAng_thres = cos((param<float>("deviationAng_thres") / 180.0)*PI);
+    std::cout << "deviationAng_thres is " << param<float>("deviationAng_thres") << " degree"
+        << "cos (deviationAng_thres) is" << params.deviationAng_thres << std::endl;
 
     masb::PointCloud PointCloud;
     masb::PointList pc_coords_;
@@ -463,18 +466,18 @@ void ExtractCandidatePtNode::process() {
     PointCloud.normals = pc_normals_;
 
 
-
     masb::ExtractCandidatePt extractor;
     extractor.processing(params, madata, maGeometry, sheets, PointCloud);
 
     PointCollection candidate_r_, candidate_cos_;
-    //PointCollection can_pt_bisector_avg_;
+    PointCollection candidate_bisector_avg_;
     vec1i seg_id_;
     vec3f spokV_cp_, spokV_cq_, direction_;
 
     int s = extractor.can_pt_r.size();
     candidate_r_.reserve(s);
     candidate_cos_.reserve(s);
+    candidate_bisector_avg_.reserve(s);
     seg_id_.reserve(s);
     spokV_cp_.reserve(s);
     spokV_cq_.reserve(s);
@@ -484,18 +487,27 @@ void ExtractCandidatePtNode::process() {
             continue;
         auto c1 = extractor.can_pt_r[i];
         candidate_r_.push_back({ c1[0],c1[1],c1[2] });
+
         auto c2 = extractor.can_pt_cos[i];
         candidate_cos_.push_back({ c2[0],c2[1,c2[2]] });
+
+        auto c3 = extractor.can_pt_bisector_avg[i];
+        candidate_bisector_avg_.push_back({ c3[0],c3[1],c3[2] });
+
         seg_id_.push_back(extractor.seg_id[i]);
+
         auto v1 = extractor.cp[i];
         spokV_cp_.push_back({ v1[0],v1[1],v1[2] });
+
         auto v2 = extractor.cq[i];
         spokV_cq_.push_back({ v2[0],v2[1],v2[2] });
+
         auto d = extractor.direction[i];
         direction_.push_back({ d[0],d[1],d[2] });
     }
     output("candidate_r").set(candidate_r_);
     output("candidate_cos").set(candidate_cos_);
+    output("candidate_bisector_avg").set(candidate_bisector_avg_);
     output("seg_id").set(seg_id_);
     output("spoke_cp").set(spokV_cp_);
     output("spoke_cq").set(spokV_cq_);

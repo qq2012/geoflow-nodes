@@ -187,6 +187,7 @@ namespace geoflow::nodes::mat {
           add_output("lable",typeid(vec1i));
           add_output("traces", typeid(LineStringCollection));
       }
+
       void process();
   };
   class ExtractCandidatePtNode :public Node {
@@ -194,6 +195,8 @@ namespace geoflow::nodes::mat {
       using Node::Node;
       void init() {
           add_param("SearchRadius", (float) 45.00);
+          add_param("deviationAng_thres", (float) 15.00);
+
           add_input("madata", typeid(masb::mat_data));
           add_input("maGeometry", typeid(masb::ma_Geometry));
           add_input("sheets", typeid(masb::Sheet_idx_List));
@@ -203,10 +206,15 @@ namespace geoflow::nodes::mat {
 
           add_output("candidate_r", typeid(PointCollection));
           add_output("candidate_cos", typeid(PointCollection));
+          add_output("candidate_bisector_avg", typeid(PointCollection));
           add_output("seg_id",typeid(vec1i));
           add_output("spoke_cp",typeid(vec3f));
           add_output("spoke_cq", typeid(vec3f));
           add_output("direction", typeid(vec3f));
+      }
+      void gui() {
+          ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 20, 100);
+          ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 90);
       }
       void process();
   };
