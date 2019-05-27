@@ -149,36 +149,10 @@ namespace geoflow::nodes::mat {
 
         masb::MAT mat;
         mat.isInterior = isInterior;
-        /*
-        int count = 0;
-        if (isInterior) {
-            count = std::count(std::begin(ma_qidx_vec1i),
-                    std::begin(ma_qidx_vec1i)+ madata.m,
-                    -1);
-        }
-        else {
-            count = std::count(std::begin(ma_qidx_vec1i) + madata.m,
-                    std::end(ma_qidx_vec1i),
-                    -1);
-        }
-        */
-        //mat.matSize = madata.m - count;
-        /*
-        masb::PointList atom_(mat.matSize);
-        masb::floatList radius_(mat.matSize);
-        masb::PointList unshrikingGroundPoint_(madata.m- mat.matSize);
-        masb::PointList fp_(mat.matSize);//feature point p
-        masb::PointList fq_(mat.matSize);
-        masb::VectorList sp_reverse_norm_(mat.matSize);
-        masb::VectorList sp_(mat.matSize);//spoken vector
-        masb::VectorList sq_(mat.matSize);
-        masb::VectorList bisector_(mat.matSize);
-        masb::floatList seperationAng_(mat.matSize);
-        masb::VectorList ma_direction_(mat.matSize);
-        */
+
         masb::compute_ma_geometry_new(madata, mat, isInterior);
+
         mat.matSize = mat.atom.size();
-        //masb::compute_ma_geometry(madata, maGeometry);
         PointCollection atom_;atom_.reserve(mat.matSize);
         for (auto &p : mat.atom)
             atom_.push_back({ p[0],p[1],p[2] });
@@ -213,7 +187,6 @@ namespace geoflow::nodes::mat {
         output("bisector").set(bisector_);
         output("ma_direction").set(ma_direction_);
         output("mat").set(mat);
-
     }
 
     void FilterRNode::process() {
@@ -232,14 +205,7 @@ namespace geoflow::nodes::mat {
 
     void MedialSegmentNode::process() {
         auto mat = input("mat").get<masb::MAT>();
-        auto remaining_idx_vec1i = input("remaining_idx").get<vec1i>();
-        auto ma_coords_collection = input("ma_coords").get<PointCollection>();
-        auto ma_qidx_vec1i = input("ma_qidx").get<vec1i>();
-        auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
-        auto ma_SeparationAng_vec1f = input("ma_SeparationAng").get<vec1f>();
-        auto ma_bisector_vec3f = input("ma_bisector").get<vec3f>();
-        auto ma_normal_vec3f = input("ma_normal").get<vec3f>();
-
+        
         masb::MaSeg_power params;
         params.mincount = param<int>("mincount");
         params.maxcount = param<int>("maxcount");
@@ -285,110 +251,17 @@ namespace geoflow::nodes::mat {
                 << std::endl;
             break;
         }
+        
+        masb::MaSegProcess segmentation;
+        segmentation.processing(params, mat);
 
-        masb::intList remaining_idx;
-        for (auto& i : remaining_idx_vec1i) {
-            remaining_idx.push_back(int(i));
+        vec1i seg_id_;
+        seg_id_.reserve(mat.matSize);
+        for (auto& i : segmentation.point_segment_idx) {
+            seg_id_.push_back((int)i);
         }
 
-        masb::ma_data madata;
-        masb::mat_data remainingData;
-        madata.m = ma_coords_collection.size() / 2;
-        masb::PointList ma_coords;
-        ma_coords.reserve(madata.m * 2);
-        for (auto& p : ma_coords_collection) {
-            ma_coords.push_back(masb::Point(p.data()));
-        }
-        masb::floatList ma_radius;
-        ma_radius.reserve(madata.m * 2);
-        for (auto& r : ma_radius_vec1f) {
-            ma_radius.push_back(r);
-        }
-        masb::intList ma_qidx;
-        ma_qidx.reserve(madata.m * 2);
-        for (int & i : ma_qidx_vec1i) {
-            ma_qidx.push_back(i);
-        }
-        madata.ma_coords = &ma_coords;
-        madata.ma_radius = &ma_radius;
-        madata.ma_qidx = &(ma_qidx[0]);//?????????????????????????
-
-
-        masb::ma_Geometry maGeometry, remainingGeometry;
-        masb::floatList ma_SeparationAng;
-        ma_SeparationAng.reserve(madata.m * 2);
-        for (auto & a : ma_SeparationAng_vec1f) {
-            ma_SeparationAng.push_back(float(a));
-        }
-        masb::VectorList ma_bisector;
-        ma_bisector.reserve(madata.m * 2);
-        for (auto& v : ma_bisector_vec3f) {
-            ma_bisector.push_back(masb::Vector(v.data()));
-        }
-        masb::VectorList ma_normal;
-        ma_normal.reserve(madata.m * 2);
-        for (auto& v : ma_normal_vec3f) {
-            ma_normal.push_back(masb::Vector(v.data()));
-        }
-        maGeometry.ma_SeperationAng = ma_SeparationAng;
-        maGeometry.ma_bisector = ma_bisector;
-        maGeometry.ma_normal = ma_normal;
-
-        //masb::intList remainingma_in_out;
-        masb::idx_filter filter;
-        filter.processing(madata, maGeometry, remaining_idx,
-            remainingData, remainingGeometry);
-
-        masb::mat_data madata_in, madata_out;
-        masb::ma_Geometry maGeometry_in, maGeometry_out;
-        masb::splitInOut splier;
-        splier.processing(remainingData, remainingGeometry, true, madata_in, maGeometry_in);
-        splier.processing(remainingData, remainingGeometry, false, madata_out, maGeometry_out);
-
-        masb::MaSegProcess segmentation_in, segmentation_out;
-        segmentation_in.processing(params, madata_in, maGeometry_in);
-        auto seg_in_ = segmentation_in.point_segment_idx;
-        auto sheet_in_ = segmentation_in.shape;
-
-        segmentation_out.processing(params, madata_out, maGeometry_out);
-        auto seg_out_ = segmentation_out.point_segment_idx;
-        auto sheet_out_ = segmentation_out.shape;
-
-        PointCollection ma_coords_in_;
-        ma_coords_in_.reserve(madata_in.ma_ptsize);
-        for (auto& c : madata_in.ma_coords) {
-            ma_coords_in_.push_back({ c[0], c[1], c[2] });
-        }
-        PointCollection ma_coords_out_;
-        ma_coords_out_.reserve(madata_out.ma_ptsize);
-        for (auto& c : madata_out.ma_coords) {
-            ma_coords_out_.push_back({ c[0], c[1], c[2] });
-        }
-
-        vec1i seg_in_vec1i, seg_out_vec1i;
-        seg_in_vec1i.reserve(madata_in.ma_ptsize);
-        for (auto& i : seg_in_) {
-            seg_in_vec1i.push_back((int)i);
-        }
-        seg_out_vec1i.reserve(madata_out.ma_ptsize);
-        for (auto& i : seg_out_) {
-            seg_out_vec1i.push_back((int)i);
-        }
-
-
-
-        output("madata_in").set(madata_in);
-        output("madata_out").set(madata_out);
-        output("maGeometry_in").set(maGeometry_in);
-        output("maGeometry_out").set(maGeometry_out);
-        output("ma_coords_in").set(ma_coords_in_);
-        output("ma_coords_out").set(ma_coords_out_);
-        output("seg_in_vis").set(seg_in_vec1i);
-        output("seg_out_vis").set(seg_out_vec1i);
-        output("seg_in").set(seg_in_);
-        output("seg_out").set(seg_out_);
-        output("sheet_in").set(sheet_in_);
-        output("sheet_out").set(sheet_out_);
+        output("seg_id").set(seg_id_);
 
     }
 

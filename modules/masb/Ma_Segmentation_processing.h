@@ -4,7 +4,6 @@
 
 #include "madata.h"
 
-
 namespace masb{
   enum METHOD { bisector, spokecross, balloverlap, 
       combinBisecAndSpcros, combinBallAndSpcros};
@@ -35,7 +34,7 @@ namespace masb{
       vector<long long int> point_segment_idx; // 0=unsegmented, maybe put this on the heap...
       Sheet_idx_List shape;//does not contain 0
       vector<int> shape_inout;
-      void processing(MaSeg_power &power, mat_data &madata, ma_Geometry &maGeometry);
+      void processing(MaSeg_power &power, MAT &mat);
 
   private:
       vector<long long int> *remaining_idx;
@@ -46,12 +45,12 @@ namespace masb{
       size_t findseed_random();
       void  remaining_idx_remove_idx(long long int id);
       inline bool if_all_segmented();
-      inline bool valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry);
-      inline bool MaSegProcess::valid_candidate_sepAng(float sepAng_thres, size_t idx1, size_t  idx2, ma_Geometry &maGeometry);
-      inline bool valid_candidate_spokecross(float cosnorm_thres, size_t idx1, size_t idx2, ma_Geometry &maGeometry);
-      inline bool valid_candidate_balloverlap(float balloverlap_thres, size_t idx1, size_t  idx2, mat_data &madata);
-      bool validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2, mat_data &madata, ma_Geometry &maGeometry);
-      void grow_sheet(MaSeg_power &power,size_t initial_seed_idx, mat_data &madata, ma_Geometry &maGeometry);
+      inline bool valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, MAT&mat);
+      inline bool valid_candidate_sepAng(float sepAng_thres, size_t idx1, size_t  idx2, MAT&mat);
+      inline bool valid_candidate_spokecross(float cosnorm_thres, size_t idx1, size_t idx2, MAT&mat);
+      inline bool valid_candidate_balloverlap(float balloverlap_thres, size_t idx1, size_t  idx2, MAT&mat);
+      bool validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2, MAT&mat);
+      void grow_sheet(MaSeg_power &power,size_t initial_seed_idx, MAT &mat, kdtree2::KDTree *kdtree_ma_atoms);
  };
 }
 

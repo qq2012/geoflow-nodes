@@ -7,18 +7,6 @@
 
 //using namespace masb;
 namespace masb {
-    /*
-    struct ExtractCandidatePt_pram {
-        std::string method;
-
-    };
-    
-    class ExtractCandidatePt {
-    public:
-        int i;
-        void processing();
-    };
-    */
     class ExtractCandidatePt_pram {
     public:
         //std::string method = "fixe radius";

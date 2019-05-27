@@ -106,32 +106,13 @@ namespace geoflow::nodes::mat {
         void init() {
             add_param("mincount", (int)10);
             add_param("maxcount", (int)1000);
-            //add_param("method", "bisec");//why not std::string?????
             add_param("bisec_thres", (float)5.0);
             add_param("spokecross_thres", (float)5.0);
             add_param("balloverlap_thres", (float)5.0);
 
             add_input("mat", typeid(masb::MAT));
-            add_input("remaining_idx", typeid(vec1i));
-            add_input("ma_coords", typeid(PointCollection));
-            add_input("ma_qidx", typeid(vec1i));
-            add_input("ma_radius", typeid(vec1f));
-            add_input("ma_SeparationAng", typeid(vec1f));
-            add_input("ma_bisector", typeid(vec3f));
-            add_input("ma_normal", typeid(vec3f));
+            add_output("seg_id", typeid(vec1i));
 
-            add_output("madata_in", typeid(masb::mat_data));
-            add_output("madata_out", typeid(masb::mat_data));
-            add_output("maGeometry_in", typeid(masb::ma_Geometry));
-            add_output("maGeometry_out", typeid(masb::ma_Geometry));
-            add_output("ma_coords_in", typeid(PointCollection));
-            add_output("ma_coords_out", typeid(PointCollection));
-            add_output("seg_in", typeid(std::vector<long long int>));
-            add_output("seg_out", typeid(std::vector<long long int>));
-            add_output("seg_in_vis", typeid(vec1i));
-            add_output("seg_out_vis", typeid(vec1i));
-            add_output("sheet_in", typeid(masb::Sheet_idx_List));
-            add_output("sheet_out", typeid(masb::Sheet_idx_List));
         }
         void gui() {
             ImGui::SliderInt("mincount", &param<int>("mincount"), 5, 200);
