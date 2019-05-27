@@ -17,6 +17,10 @@ namespace geoflow::nodes::mat {
     R->register_node<ReadSegmentRestltNode>("ReadSegmentRestltNode");
     R->register_node<ReadJunctionPtNode>("ReadJunctionPtNode");
     R->register_node<ReadAdjacencyNode>("ReadAdjacencyNode");
+    R->register_node<LoadReferenceBreaklineNode>("LoadReferenceBreaklineNode");
+    R->register_node<BreaklineValidationNode>("BreaklineValidationNode");
+    R->register_node<SelectTestBreaklineNode>("SelectTestBreaklineNode");
+    R->register_node<LoadTruePositiveVerticesNode>("LoadTruePositiveVerticesNode");
     return R;
   }
 

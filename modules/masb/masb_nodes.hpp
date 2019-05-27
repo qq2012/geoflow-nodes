@@ -1,4 +1,5 @@
 #include <geoflow/core/geoflow.hpp>
+#include <geoflow/gui/osdialog.hpp>
 
 #include <compute_ma_processing.h>
 #include <compute_normals_processing.h>
@@ -8,6 +9,7 @@
 #include "ExtractCandidatePt.h"
 #include "MaPt_in_oneTrace.h"
 #include "ConnectCandidatePt.h"
+#include "breaklineValidate.h"
 
 
 namespace geoflow::nodes::mat {
@@ -154,21 +156,21 @@ namespace geoflow::nodes::mat {
           }
 
           if (item_current == items[0]) {
-              ImGui::SliderFloat("bisec_thres", &param<float>("bisec_thres"), 0, 90);
+              ImGui::SliderFloat("bisec_thres", &param<float>("bisec_thres"), 0, 45);
           }
           else if (item_current == items[1]) {
-              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 90);
+              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 45);
           }
           else if (item_current == items[2]) {
-              ImGui::SliderFloat("balloverlap_thres", &param<float>("balloverlap_thres"), 0, 100);
+              ImGui::SliderFloat("balloverlap_thres", &param<float>("balloverlap_thres"), 0, 45);
           }
           else if (item_current == items[3]) {
-              ImGui::SliderFloat("bisec_thres", &param<float>("bisec_thres"), 0, 90);
-              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 90);
+              ImGui::SliderFloat("bisec_thres", &param<float>("bisec_thres"), 0, 45);
+              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 45);
           }
           else if (item_current == items[4]) {
-              ImGui::SliderFloat("balloverlap_thres", &param<float>("balloverlap_thres"), 0, 100);
-              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 90);
+              ImGui::SliderFloat("balloverlap_thres", &param<float>("balloverlap_thres"), 0, 10);
+              ImGui::SliderFloat("spokecross_thres", &param<float>("spokecross_thres"), 0, 45);
           }
       }
       void process();
@@ -214,7 +216,9 @@ namespace geoflow::nodes::mat {
       }
       void gui() {
           ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 20, 100);
-          ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 90);
+
+          //ImGui::SliderInt("deviationAng_thres", &param<int>("deviationAng_thres"), 0, 30);
+          ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 45);
       }
       void process();
   };
@@ -363,6 +367,61 @@ namespace geoflow::nodes::mat {
       void gui() {
           ImGui::InputText("filepath", &param<std::string>("filepath"));
           ImGui::SliderInt("thinning_factor", &param<int>("thinning_factor"), 1, 200);
+      }
+      void process();
+  };
+  class LoadReferenceBreaklineNode :public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_output("ReferenceVertices", typeid(PointCollection));
+          add_output("ReferenceBreakline", typeid(LineString));
+
+          add_param("filepath", (std::string) "");
+      }
+      void gui() {
+          ImGui::FilePicker(OSDIALOG_OPEN, param<std::string>("filepath"));
+      }
+      void process();
+  };
+
+  class LoadTruePositiveVerticesNode : public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_output("ExtractedTruePositiveVertices", typeid(PointCollection));
+          add_output("ExtractedTruePositiveBreakline", typeid(LineString));
+
+          add_param("filepath", (std::string) "");
+      }
+      void gui() {
+          ImGui::FilePicker(OSDIALOG_OPEN, param<std::string>("filepath"));
+      }
+      void process();
+
+  };
+
+  class SelectTestBreaklineNode :public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_param("BreaklineID", (int)0);
+          add_input("ExtractedBreakline", typeid(LineStringCollection));
+
+          add_output("TestBreakline",typeid(LineString));
+      }
+      void gui() {
+          ImGui::SliderInt("BreaklineID", &param<int>("BreaklineID"), 1, 20);
+      }
+      void process();
+  };
+
+  class BreaklineValidationNode :public Node {
+  public:
+      using Node::Node;
+      void init() {
+          add_input("ReferenceVertices", typeid(PointCollection));
+          add_input("TruePositiveVertices", typeid(PointCollection));//"TestBreakline"
       }
       void process();
   };

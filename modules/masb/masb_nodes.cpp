@@ -505,6 +505,9 @@ void ExtractCandidatePtNode::process() {
         auto d = extractor.direction[i];
         direction_.push_back({ d[0],d[1],d[2] });
     }
+
+    std::cout << "ExtractCandidatePtNode:: there are " << candidate_r_.size() << " candidate points" << std::endl;
+
     output("candidate_r").set(candidate_r_);
     output("candidate_cos").set(candidate_cos_);
     output("candidate_bisector_avg").set(candidate_bisector_avg_);
@@ -1049,6 +1052,7 @@ void ConnectCandidatePtNode::process() {
 void PLYLoaderNode::process() {
     int k = param<int>("thinning_factor");
     std::string filepath = param<std::string>("filepath");
+
     std::cout << "start load point cloud\n";
     std::ifstream infile;
     infile.open(filepath);
@@ -1078,6 +1082,111 @@ void PLYLoaderNode::process() {
         }
     }
     output("PointCloud").set(PointCloud_);
+}
+
+void LoadReferenceBreaklineNode::process() {
+    auto filepath = param<std::string>("filepath");
+
+    PointCollection Vertices_;
+    LineString polyline_;
+
+    std::cout << "start load Reference Breakline"<<std::endl;
+    std::ifstream infile;
+    infile.open(filepath);
+    if (!infile) {
+        std::cout << "LoadReferenceBreaklineNode:: filepath error" << std::endl;
+        return;
+    }
+
+    std::string xyz;
+    while (!infile.eof()) {
+        std::getline(infile, xyz);
+        auto elems = masb::split2nums(xyz, ',');
+        float x = ::atof(elems[0].c_str());
+        float y = ::atof(elems[1].c_str());
+        float z = ::atof(elems[2].c_str());
+        Vertices_.push_back({ x,y,z });
+        polyline_.push_back({ x,y,z });
+    }
+    infile.close();
+
+    std::cout << "Reference breakline has " << Vertices_.size() << " points" << std::endl;
+
+    output("ReferenceVertices").set(Vertices_);
+    output("ReferenceBreakline").set(polyline_);
+}
+
+void LoadTruePositiveVerticesNode::process() {
+    auto filepath = param<std::string>("filepath");
+
+    PointCollection Vertices_;
+    LineString polyline_;
+
+    std::cout << "start load TruePositiveVertices" << std::endl;
+    std::ifstream infile;
+    infile.open(filepath);
+    if (!infile) {
+        std::cout << "LoadTruePositiveVerticesNode:: filepath error" << std::endl;
+        return;
+    }
+
+    std::string dummyLine;
+    int size;
+    int i = 0;
+    while (i < 1) {
+        std::getline(infile, dummyLine);
+        i++;
+    }
+
+    std::string xyz;
+    while (!infile.eof()) {
+        std::getline(infile, xyz);
+        auto elems = masb::split2nums(xyz, ',');
+        float x = ::atof(elems[0].c_str());
+        float y = ::atof(elems[1].c_str());
+        float z = ::atof(elems[2].c_str());
+        Vertices_.push_back({ x,y,z });
+        polyline_.push_back({ x,y,z });
+    }
+    infile.close();
+
+    std::cout << "Loaded breakline has " << Vertices_.size() << " points" << std::endl;
+
+    output("ExtractedTruePositiveVertices").set(Vertices_);
+    output("ExtractedTruePositiveBreakline").set(polyline_);
+}
+
+void SelectTestBreaklineNode::process() {
+    auto BreaklineID = param<int>("BreaklineID");
+    auto ExtractedBreakline = input("ExtractedBreakline").get<LineStringCollection>();
+
+    if (BreaklineID >= ExtractedBreakline.size()) {
+        std::cout << "conpareID error, the maximum id is"<<ExtractedBreakline.size() << std::endl;
+        return;
+    }
+    auto TestBreakline_ = ExtractedBreakline[BreaklineID];
+    std::cout << "The test breaklline ID is"<< BreaklineID
+        <<"has " << TestBreakline_.size() << " points\n"
+        << "the x;y;z coordinate is:\n";
+    for (auto &p : TestBreakline_) {
+        std::cout << p[0] << ";" << p[1] << ";" << p[2] << "\n";
+    }
+    output("TestBreakline").set(TestBreakline_);
+}
+void BreaklineValidationNode::process() {
+    auto ReferenceVertices = input("ReferenceVertices").get<PointCollection>();
+    auto TPVertices_ = input("TruePositiveVertices").get<PointCollection>();
+    
+    masb::PointList ReferenceLine;
+    ReferenceLine.reserve(ReferenceVertices.size());
+    for (auto&v : ReferenceVertices)
+        ReferenceLine.push_back(masb::Point(v.data()));
+
+    masb::PointList TestLine;
+    for (auto &p : TPVertices_) {
+        TestLine.push_back(masb::Point(p.data()));
+    }
+    ridge::breaklineValidateProcess(TestLine, ReferenceLine);
 }
 }
 

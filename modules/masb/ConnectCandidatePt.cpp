@@ -42,13 +42,30 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             filter.push_back(1);
     }
     //dis_list;
-
+    seg_id;
+    /*
+    masb::intList seg_id_test = seg_id;
+    //int j = 0;
     std::map<int, int> seg_frequency;
-    for (int i : seg_id)
+    for (auto i : seg_id_test) {
+        //std::cout << "i" << i << "j" << j << std::endl;
         ++seg_frequency[i];
-    //for (const auto& e : seg_frequency)
-    //    std::cout << "Element " << e.first 
-    //     << " encountered " << e.second << " times\n";
+        //j++;
+    }
+    for (const auto& e : seg_frequency)
+        std::cout << "Element " << e.first 
+         << " encountered " << e.second << " times\n";
+*/
+    std::map<int, int> seg_frequency;
+    for (auto i : seg_id) {
+    //    std::cout << "i"<<i <<"j"<<j<< std::endl;
+        ++seg_frequency[i];
+    //    j++;
+    }
+        
+    for (const auto& e : seg_frequency)
+        std::cout << "Element " << e.first 
+         << " encountered " << e.second << " times\n";
 
     for (const auto& e : seg_frequency) {
         auto cur_sheet = e.first;

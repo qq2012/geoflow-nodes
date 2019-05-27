@@ -6,7 +6,9 @@
 #include "ConnectCandidatePt.h"
 
 namespace ridge {
-    float breaklineValidateProcess(ridge::line &TestLine, ridge::line &TruthLine);
+//public:
+    void breaklineValidateProcess(masb::PointList &TestVertices, masb::PointList &ReferenceVertices);
+
 }
 
 #endif
