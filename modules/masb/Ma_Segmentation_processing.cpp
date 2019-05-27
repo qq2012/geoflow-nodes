@@ -53,7 +53,12 @@ inline bool MaSegProcess::valid_candidate_bisec(float bisec_thres,size_t idx1, s
     */
     return bisec1 * bisec2 > bisec_thres;
 }
-
+inline bool MaSegProcess::valid_candidate_sepAng(float sepAng_thres, size_t idx1, size_t  idx2, ma_Geometry &maGeometry) {
+    auto diff = maGeometry.ma_SeperationAng[idx1] - maGeometry.ma_SeperationAng[idx2];
+    if (diff < 0)
+        diff = -diff;
+    return diff < sepAng_thres;
+}
 inline bool MaSegProcess::valid_candidate_spokecross(float spokecross_thres, size_t idx1, size_t idx2, ma_Geometry &maGeometry) {
     Vector crosnorm1 = maGeometry.ma_normal[idx1];
     Vector crosnorm2 = maGeometry.ma_normal[idx2];

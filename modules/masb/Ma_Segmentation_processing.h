@@ -47,6 +47,7 @@ namespace masb{
       void  remaining_idx_remove_idx(long long int id);
       inline bool if_all_segmented();
       inline bool valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, ma_Geometry &maGeometry);
+      inline bool MaSegProcess::valid_candidate_sepAng(float sepAng_thres, size_t idx1, size_t  idx2, ma_Geometry &maGeometry);
       inline bool valid_candidate_spokecross(float cosnorm_thres, size_t idx1, size_t idx2, ma_Geometry &maGeometry);
       inline bool valid_candidate_balloverlap(float balloverlap_thres, size_t idx1, size_t  idx2, mat_data &madata);
       bool validateCandidate(MaSeg_power &power,size_t idx1, size_t idx2, mat_data &madata, ma_Geometry &maGeometry);

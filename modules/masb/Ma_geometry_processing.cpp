@@ -5,6 +5,53 @@
 #include <cmath>
 #include <iostream>
 namespace masb {
+    void compute_ma_geometry_new(ma_data &madata, MAT &mat, bool isInterior) {
+        int startIdx, endIdx;
+        if (isInterior) {
+            startIdx = 0;
+            endIdx = madata.m;
+        }
+        else {
+            startIdx = madata.m;
+            endIdx = madata.m * 2;
+        }
+        for (int i = startIdx; i < endIdx; ++i) {
+            int i_ = i % madata.m;
+            if (madata.ma_qidx[i] != -1) {
+                Point c = (*madata.ma_coords)[i];
+                mat.atom.push_back(c);
+                mat.radius.push_back((*madata.ma_radius)[i]);
+                Point p = (*madata.coords)[i_];
+                mat.fp.push_back(p);//feature point p
+                Point q = (*madata.coords)[madata.ma_qidx[i]];
+                mat.fq.push_back(q);
+                if (isInterior)
+                    mat.sp_reverse_norm.push_back((*madata.normals)[i_]);
+                else
+                    mat.sp_reverse_norm.push_back(-(*madata.normals)[i_]);
+                auto sp = p - c;
+                sp.normalize();
+                auto sq = q - c;
+                sq.normalize();
+                mat.sp.push_back(sp);//spoken vector
+                mat.sq.push_back(sq);
+                auto b = sp + sq;
+                b.normalize();
+                mat.bisector.push_back(b);
+                float sepAng = std::acos(sp*sq);
+                mat.seperationAng.push_back(sepAng);
+                auto md = Vrui::Geometry::cross(sp, sq);
+                mat.ma_direction.push_back(md);
+            }
+            else {
+                Point u = (*madata.coords)[i_];
+                mat.unshrikingGroundPoint.push_back(u);
+            }
+        }
+
+    }
+
+
     maGeom_result Geom4pt(Vector &p_norm, Vector &q_norm) {
         maGeom_result re;
         //build in cross product function ????????????????????
@@ -37,15 +84,21 @@ namespace masb {
         #pragma omp parallel for private(cp,cq)
         for (int i = 0; i < madata.m * 2; ++i) {
             if (madata.ma_qidx[i] != -1){
-                if (i < madata.m)
-                    cp = (*madata.normals)[i];
-                else
-                    cp = -(*madata.normals)[i - madata.m];
-                cp.normalize();
+                Point p;
+                if (i < madata.m){
+                    //cp = (*madata.normals)[i];
+                    p = (*madata.coords)[i];
+                }
+                else {
+                    //cp = -(*madata.normals)[i - madata.m];
+                    p = (*madata.coords)[i - madata.m];
+                }
                 Point q = (*madata.coords)[madata.ma_qidx[i]];
                 Point c = (*madata.ma_coords)[i];
-                auto cq= q - c;
+                cq= q - c;
                 cq.normalize();
+                cp = p - c;
+                cp.normalize();
                 maGeom_result res = Geom4pt(cp, cq);
                 maGeometry.ma_bisector[i] = res.bisector;
                 maGeometry.ma_SeperationAng[i] = res.SepAng;

@@ -143,7 +143,7 @@ namespace as {
 namespace geoflow::nodes::stepedge {
 
 void AlphaShapeNode::process(){
-  auto points_per_segment = input("pts_per_roofplane").get<std::unordered_map<int, std::vector<Point>>>();
+  auto points_per_segment = input("pts_per_roofplane").get<std::unordered_map<int, std::pair<Plane, std::vector<Point>>>>();
 
   auto thres_alpha = param<float>("thres_alpha");
   auto optimal_alpha = param<bool>("optimal_alpha");
@@ -156,8 +156,7 @@ void AlphaShapeNode::process(){
   vec1i segment_ids, plane_idx;
   for (auto& it : points_per_segment ) {
     if (it.first == -1) continue; // skip points if they put at index -1 (eg if we care not about slanted surfaces for ring extraction)
-    plane_idx.push_back(it.first);
-    auto points = it.second;
+    auto points = it.second.second;
     as::Triangulation_2 T;
     T.insert(points.begin(), points.end());
     as::Alpha_shape_2 A(T,
@@ -240,6 +239,7 @@ void AlphaShapeNode::process(){
       } while (v_next != v_start);
       // finally, store the ring 
       alpha_rings.push_back(ring);
+      plane_idx.push_back(it.first);
     }
   }
   
@@ -249,6 +249,7 @@ void AlphaShapeNode::process(){
   output("segment_ids").set(segment_ids);
   output("edge_points").set(edge_points);
   output("boundary_points").set(boundary_points);
+  output("roofplane_ids").set(plane_idx);
 }
 
 void Ring2SegmentsNode::process() {
@@ -445,7 +446,14 @@ void ExtruderNode::process(){
         for (size_t i=0; i<indices.size()/3; ++i) {
           Triangle triangle;
           for (size_t j=0; j<3; ++j) {
-            triangle[j] = {vertices[i*3+j][0], vertices[i*3+j][1], face->data().elevation_avg};
+            auto& px = vertices[i*3+j][0];
+            auto& py = vertices[i*3+j][1];
+            float h;
+            auto& plane = face->data().plane;
+            if (param<bool>("LoD2")) {
+              h = (plane.a()*px + plane.b()*py + plane.d()) / (-plane.c());
+            } else h = face->data().elevation_avg;
+            triangle[j] = {px, py, h};
             labels.push_back(1);
             normals.push_back({0,0,1});
             cell_id_vec1i.push_back(cell_id);
@@ -476,6 +484,8 @@ void ExtruderNode::process(){
 
         auto h1 = edge->face()->data().elevation_avg;
         auto h2 = edge->twin()->face()->data().elevation_avg;
+        if (left && !right) h1=0;
+        if (!left && right) h2=0;
         // push 2 triangles to form the quad between lower and upper edges
         // notice that this is not always topologically correct, but fine for visualisation
         
@@ -957,8 +967,7 @@ void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
     for (auto& kv : face_map) {
       std::stack<Face_handle> candidate_stack;
       // std::cout << "Growing face with elevation=" << kv.first << "\n";
-      auto& cur_segid = kv.second->data().segid;
-      auto& cur_elev = kv.second->data().elevation_avg;
+      auto& cur_data = kv.second->data();
       candidate_stack.push(kv.second);
       while (!candidate_stack.empty()) {
         auto fh = candidate_stack.top(); candidate_stack.pop();
@@ -975,8 +984,7 @@ void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
           if (!he->data().blocks) {
             auto candidate = he->twin()->face();
             if (candidate->data().segid == 0 && candidate->data().in_footprint) {
-              candidate->data().segid = cur_segid;
-              candidate->data().elevation_avg = cur_elev;
+              candidate->data() = cur_data;
               candidate_stack.push(candidate);
             }
           }
@@ -999,11 +1007,9 @@ void BuildArrFromRingsExactNode::arr_process(Arrangement_2& arr) {
           // should add face merge call back in face observer class...
           // pick elevation of the segment with the highest count
           if (f2->data().elevation_avg < f1->data().elevation_avg) {
-            f2->data().elevation_avg = f1->data().elevation_avg;
-            f2->data().segid = f1->data().segid;
+            f2->data()= f1->data();
           } else {
-            f1->data().elevation_avg = f2->data().elevation_avg;
-            f1->data().segid = f2->data().segid;
+            f1->data() = f2->data();
           }
           arr.remove_edge(edge);
         }
@@ -1139,9 +1145,9 @@ void arr_insert_polygon(Arrangement_2& arr, const linereg::Polygon_2& polygon) {
 
 void BuildArrFromRingsExactNode::process() {
   // Set up vertex data (and buffer(s)) and attribute pointers
-  auto rings = input("rings").get<std::vector<linereg::Polygon_2>>();
+  auto rings = input("rings").get<std::unordered_map<size_t, linereg::Polygon_2>>();
   // auto plane_idx = input("plane_idx").get<vec1i>();
-  auto points_per_plane = input("pts_per_roofplane").get<std::unordered_map<int, std::vector<Point>>>();
+  auto points_per_plane = input("pts_per_roofplane").get<std::unordered_map<int, std::pair<Plane, std::vector<Point>>>>();
 
   auto fp_in = input("footprint");
   linereg::Polygon_2 footprint;
@@ -1156,7 +1162,7 @@ void BuildArrFromRingsExactNode::process() {
 
   Arrangement_2 arr_base;
   {
-    Face_index_observer obs (arr_base, true, 0, 0);
+    Face_index_observer obs (arr_base, true, 0, 0, Plane());
     insert(arr_base, footprint.edges_begin(), footprint.edges_end());
     // arr_insert_polygon(arr_base, footprint);
     // insert_non_intersecting_curves(arr_base, footprint.edges_begin(), footprint.edges_end());
@@ -1169,12 +1175,15 @@ void BuildArrFromRingsExactNode::process() {
     Arrangement_2 arr_overlay;
     size_t i=0;
     // NOTE: rings and points_per_plane must be aligned!! (matching length and order)
-    for (auto& kv : points_per_plane) {
-      if (kv.first==-1) continue;
-      auto& polygon = rings[i++];
+    for (auto& kv : rings) {
+      auto plane_id = kv.first;
+      if (plane_id<1) continue;
+      auto& polygon = kv.second;
       if (polygon.size()>2) {
-        auto plane_id = kv.first;
-        auto& points = kv.second;
+        
+        auto& points = points_per_plane[plane_id].second;
+        auto& plane = points_per_plane[plane_id].first;
+        if (points.size()==0) continue;
         std::sort(points.begin(), points.end(), [](linedect::Point& p1, linedect::Point& p2) {
           return p1.z() < p2.z();
         });
@@ -1182,7 +1191,7 @@ void BuildArrFromRingsExactNode::process() {
 
         // wall_planes.push_back(std::make_pair(Plane(s.first, s.second, s.first+Vector(0,0,1)),0));
         Arrangement_2 arr;
-        Face_index_observer obs (arr, false, plane_id, points[elevation_id].z());
+        Face_index_observer obs (arr, false, plane_id, points[elevation_id].z(), plane);
         insert(arr, polygon.edges_begin(), polygon.edges_end());
         // arr_insert_polygon(arr, polygon);
 
@@ -1201,7 +1210,7 @@ void BuildArrFromRingsExactNode::process() {
   if(param<bool>("snap_clean_fp")) arr_snapclean_from_fp(arr_base);
 
   if(param<bool>("extrude_unsegmented") && points_per_plane.count(-1)) {
-    arr_assign_pts_to_unsegmented(arr_base, points_per_plane[-1]);
+    arr_assign_pts_to_unsegmented(arr_base, points_per_plane[-1].second);
   }
   auto nosegid_area = arr_measure_nosegid(arr_base);
   
@@ -1483,10 +1492,11 @@ inline size_t DetectLinesNode::detect_lines_ring_m2(linedect::LineDetector& LD, 
 
 void DetectLinesNode::process(){
   auto input_geom = input("edge_points");
+  
 
   SegmentCollection edge_segments, lines3d;
   vec1i ring_order, ring_id, is_start;
-  std::vector<std::vector<size_t>> ring_idx;
+  std::unordered_map<size_t,std::vector<size_t>> ring_idx;
   // fit lines in all input points
   if (input_geom.connected_type == typeid(PointCollection)) {
     std::vector<linedect::Point> cgal_pts;
@@ -1501,13 +1511,13 @@ void DetectLinesNode::process(){
   // fit lines per ring
   } else if (input_geom.connected_type == typeid(LinearRingCollection)) {
     auto rings = input_geom.get<LinearRingCollection>();
+    auto roofplane_ids = input("roofplane_ids").get<vec1i>();
     int n = param<int>("k");
-    ring_idx.resize(rings.size());
     
     size_t ring_cntr=0;
-    size_t seg_cntr=0;
+    size_t seg_cntr=0, plane_id;
     for (auto& ring : rings) {
-      
+      plane_id = roofplane_ids[ring_cntr++];
       std::vector<linedect::Point> cgal_pts;
       for( auto& p : ring ) {
         cgal_pts.push_back(linedect::Point(p[0], p[1], p[2]));
@@ -1540,15 +1550,14 @@ void DetectLinesNode::process(){
 
         for (size_t j=0; j<n_detected; ++j) {
           // edge_segments.push_back(ring_edges[j]);
-          ring_idx[ring_cntr].push_back(seg_cntr++);
+          ring_idx[plane_id].push_back(seg_cntr++);
           ring_order.push_back(j);
-          ring_id.push_back(ring_cntr);
+          ring_id.push_back(plane_id);
           ring_order.push_back(j);
-          ring_id.push_back(ring_cntr);
+          ring_id.push_back(plane_id);
           is_start.push_back(1);
           is_start.push_back(0);
         }
-        ++ring_cntr;
         // std::cout << "number of shapes: " << LD.segment_shapes.size() <<"\n";
         // std::cout << "number of segments: " << order_cnt <<"\n";
       }
@@ -1643,10 +1652,10 @@ void DetectPlanesNode::process() {
   PD.detect();
 
   // classify horizontal/vertical planes using plane normals
-  std::unordered_map<int, std::vector<Point>> pts_per_roofplane;
+  std::unordered_map<int, std::pair<Plane, std::vector<Point>>> pts_per_roofplane;
   size_t horiz_roofplane_cnt=0;
   size_t slant_roofplane_cnt=0;
-  if (param<bool>("only_horizontal")) pts_per_roofplane[-1] = std::vector<Point>();
+  if (param<bool>("only_horizontal")) pts_per_roofplane[-1].second = std::vector<Point>();
   size_t horiz_pt_cnt=0, total_pt_cnt=0;
   for(auto seg: PD.segment_shapes){
     auto& plane = seg.second;
@@ -1662,11 +1671,12 @@ void DetectPlanesNode::process() {
       total_pt_cnt += segpts.size();
       if (!param<bool>("only_horizontal") ||
           (param<bool>("only_horizontal") && is_horizontal)) {
-        pts_per_roofplane[seg.first] = segpts;
+        pts_per_roofplane[seg.first].second = segpts;
+        pts_per_roofplane[seg.first].first = plane;
         horiz_pt_cnt += segpts.size();
       } else if (!is_horizontal) {
-        pts_per_roofplane[-1].insert(
-          pts_per_roofplane[-1].end(),
+        pts_per_roofplane[-1].second.insert(
+          pts_per_roofplane[-1].second.end(),
           segpts.begin(),
           segpts.end()
         );
@@ -2083,7 +2093,7 @@ void chain(Segment& a, Segment& b, LinearRing& ring, const float& snap_threshold
 void RegulariseRingsNode::process(){
   // Set up vertex data (and buffer(s)) and attribute pointers
   auto edges = input("edge_segments").get<SegmentCollection>();
-  auto ring_idx = input("ring_idx").get<std::vector<std::vector<size_t>>>();
+  auto ring_idx = input("ring_idx").get<std::unordered_map<size_t,std::vector<size_t>>>();
   auto footprint = input("footprint").get<LinearRing>();
   // auto ring_id = input("ring_id").get<vec1i>();
   // auto ring_order = input("ring_order").get<vec1i>();
@@ -2116,11 +2126,10 @@ void RegulariseRingsNode::process(){
   LR.angle_threshold = param<float>("angle_threshold");
   LR.cluster(param<bool>("weighted_avg"), param<bool>("angle_per_distcluster"));
 
-  std::vector<linereg::Polygon_2> exact_polygons;
+  std::unordered_map<size_t, linereg::Polygon_2> exact_polygons;
   for (auto& idx : ring_idx) {
-    exact_polygons.push_back(
-      linereg::chain_ring<linereg::EK>(idx, LR.get_segments(0), param<float>("snap_threshold"))
-    );
+    exact_polygons[idx.first] = 
+      linereg::chain_ring<linereg::EK>(idx.second, LR.get_segments(0), param<float>("snap_threshold"));
     // std::cout << "ch ring size : "<< exact_polygons.back().size() << ", " << exact_polygons.back().is_simple() << "\n";
   }
   // std::cout << "ch fp size : "<< exact_fp.size() << ", " << exact_fp.is_simple() << "\n";
@@ -2138,18 +2147,21 @@ void RegulariseRingsNode::process(){
   }
 
   LinearRingCollection lrc;
+  vec1i plane_ids;
   for (auto& poly : exact_polygons) {
     LinearRing lr;
-    for (auto p=poly.vertices_begin(); p!=poly.vertices_end(); ++p) {
+    for (auto p=poly.second.vertices_begin(); p!=poly.second.vertices_end(); ++p) {
       lr.push_back({
         float(CGAL::to_double(p->x())),
         float(CGAL::to_double(p->y())),
         0
       });
+      plane_ids.push_back(poly.first);
     }
     lrc.push_back(lr);
   }
   output("rings_out").set(lrc);
+  output("plane_id").set(plane_ids);
 
   SegmentCollection new_segments;
   vec1i priorities;

@@ -5,6 +5,7 @@ namespace geoflow::nodes::mat {
     auto R = NodeRegister::create("MAT");
     R->register_node<ComputeMedialAxisNode>("ComputeMedialAxisNode");
     R->register_node<ComputeNormalsNode>("ComputeNormalsNode");
+
     R->register_node<PLYLoaderNode>("PLYLoaderNode");
     R->register_node<MaGeometryNode>("MaGeometryNode");
     R->register_node<FilterRNode>("FilterRNode");
@@ -21,6 +22,11 @@ namespace geoflow::nodes::mat {
     R->register_node<BreaklineValidationNode>("BreaklineValidationNode");
     R->register_node<SelectTestBreaklineNode>("SelectTestBreaklineNode");
     R->register_node<LoadTruePositiveVerticesNode>("LoadTruePositiveVerticesNode");
+
+    //R->register_node<SegmentMakerNode>("SegmentMaker");
+    //R->register_node<TestPointsNode>("TestPoints");
+    //R->register_node<RegionGrowMedialAxisNode>("RegionGrowMedialAxis");
+
     return R;
   }
 
