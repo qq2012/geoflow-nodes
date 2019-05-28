@@ -33,11 +33,9 @@ void ridge::adjacencyProcessing(ridge::adjacency_parameters& power, masb::MAT &m
             //find points belong to i but have neighbours in j
             
             std::set<int> ptIdxSet_j;
-            int count_ij = 0;
             for (auto &pt : pt_in_sheet_i) {
                 kdtree2::KDTreeResultVector neighbours;
                 sheet_j_kdtree->r_nearest(pt, power.searchRadius, neighbours);
-                count_ij += neighbours.size();
                 for (auto &n: neighbours) {
                     ptIdxSet_j.insert(n.idx);
                 }
@@ -48,14 +46,11 @@ void ridge::adjacencyProcessing(ridge::adjacency_parameters& power, masb::MAT &m
                 junction.push_back(pt_in_sheet_j[*it_j]);
             }
 
-
             //find points belong to j but have neighbour in i
             std::set<int> ptIdxSet_i;
-            int count_ji = 0;
             for (auto &pt : pt_in_sheet_j) {
                 kdtree2::KDTreeResultVector neighbours;
                 sheet_i_kdtree->r_nearest(pt, power.searchRadius, neighbours);
-                count_ji += neighbours.size();
                 for (auto &n : neighbours) {
                     ptIdxSet_i.insert(n.idx);
                 }
@@ -65,9 +60,13 @@ void ridge::adjacencyProcessing(ridge::adjacency_parameters& power, masb::MAT &m
                 //auto a = *it_j;
                 junction.push_back(pt_in_sheet_i[*it_i]);
             }
-            std::cout << "sheet " << sheet_i_id << " has " << count_ij << " neighbours in " << sheet_j_id << std::endl;
-            std::cout << "sheet " << sheet_j_id << " has " << count_ji << " neighbours in " << sheet_i_id << std::endl;              
+            if (ptIdxSet_i.size() > power.adjacency_thresh && ptIdxSet_j.size() > power.adjacency_thresh) {
+                adjacency.push_back(std::make_pair(sheet_i_id, sheet_j_id));
+                std::cout << "sheet " << sheet_i_id << " and " << sheet_j_id << " are adjacent\n";
+                std::cout << "sheet " << sheet_i_id << " has " << ptIdxSet_i.size() << " neighbours in " << sheet_j_id << std::endl;
+                std::cout << "sheet " << sheet_j_id << " has " << ptIdxSet_j.size() << " neighbours in " << sheet_i_id << std::endl;
 
+            }
         }
     }
 }

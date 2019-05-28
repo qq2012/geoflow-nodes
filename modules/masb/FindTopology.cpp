@@ -1,67 +1,71 @@
 #include "ConnectCandidatePt.h"
 #include <queue>
 #include <map>
+#include <algorithm>
 
-
-//void ridge::FindTopology(line &smoothLines, const masb::intList &symple_idList, const int_pair_vec &adjacency) {
-    /*
+void ridge::FindTopology(PolyineList &polylines, const masb::intList &polylinesID, 
+    const int_pair_vec &adjacency){
+    
     std::cout << "smoothLineid\n";
-    for (auto i : symple_idList)
+    for (auto i : polylinesID)
         std::cout << i << " ";
     std::cout << "\n";
+
     for (auto adj_pair : adjacency) {
-        int sheet_id1 = adj_pair.first;
-        int sheet_id2 = adj_pair.second;
-        if (sheet_id1 >= sheet_id2)
+        int sheet_id1 = adj_pair.first;//the smaller id
+        int sheet_id2 = adj_pair.second;//the bigger id
+
+        if ((std::find(polylinesID.begin(), polylinesID.end(), sheet_id1) == polylinesID.end())
+            || (std::find(polylinesID.begin(), polylinesID.end(), sheet_id2) == polylinesID.end()))
+            /* polylinesID does not contains sheet_id1 or sheet_id2 */
             continue;
-        auto it1 = std::find(symple_idList.begin(), symple_idList.end(), sheet_id1);
-        auto idx1 = std::distance(symple_idList.begin(), it1);
-        auto it2 = std::find(symple_idList.begin(), symple_idList.end(), sheet_id2);
-        auto idx2 = std::distance(symple_idList.begin(), it2);
 
-        auto pt1 = smoothLines[idx1][0];
-        auto pt2 = smoothLines[idx1].back();
+        auto it1 = std::find(polylinesID.begin(), polylinesID.end(), sheet_id1);
+        auto idx1 = std::distance(polylinesID.begin(), it1);
+        auto it2 = std::find(polylinesID.begin(), polylinesID.end(), sheet_id2);
+        auto idx2 = std::distance(polylinesID.begin(), it2);
 
-        kdtree2::KDTree* kdtree2 = new kdtree2::KDTree(smoothLines[idx2], true);
+        auto pt11 = polylines[idx1][0];
+        auto pt12 = polylines[idx1].back();
+
+        kdtree2::KDTree* kdtree2 = new kdtree2::KDTree(polylines[idx2], true);
         kdtree2->sort_results = true;
 
-        kdtree2::KDTreeResultVector nearest1, nearest2;
-        kdtree2->n_nearest(pt1, 1, nearest1);
-        kdtree2->n_nearest(pt2, 1, nearest2);
+        kdtree2::KDTreeResultVector nearest11, nearest12;
+        kdtree2->n_nearest(pt11, 1, nearest11);
+        kdtree2->n_nearest(pt12, 1, nearest12);
 
+        auto pt21 = polylines[idx2][0];
+        auto pt22 = polylines[idx2].back();
 
-        auto pt3 = smoothLines[idx2][0];
-        auto pt4 = smoothLines[idx2].back();
-
-        kdtree2::KDTree* kdtree1 = new kdtree2::KDTree(smoothLines[idx1], true);
+        kdtree2::KDTree* kdtree1 = new kdtree2::KDTree(polylines[idx1], true);
         kdtree1->sort_results = true;
 
-        kdtree2::KDTreeResultVector nearest3, nearest4;
-        kdtree1->n_nearest(pt3, 1, nearest3);
-        kdtree1->n_nearest(pt4, 1, nearest4);
+        kdtree2::KDTreeResultVector nearest21, nearest22;
+        kdtree1->n_nearest(pt21, 1, nearest21);
+        kdtree1->n_nearest(pt22, 1, nearest22);
 
-        std::vector<float> dis_vec = { nearest1[0].dis,nearest2[0].dis,nearest3[0].dis,nearest4[0].dis };
+        std::vector<float> dis_vec = { nearest11[0].dis,nearest12[0].dis,nearest21[0].dis,nearest22[0].dis };
 
         int minElementIndex = std::min_element(dis_vec.begin(), dis_vec.end()) - dis_vec.begin();
+        if (minElementIndex == 0) {
+            auto i = nearest11[0].idx;//idx of the nearest point in polyline[idx2]
+            polylines[idx1].insert(polylines[idx1].begin(), polylines[idx2][i]);
+        }
         if (minElementIndex == 1) {
-            auto i = nearest1[0].idx;
-            smoothLines[idx1].insert(smoothLines[idx1].begin(), smoothLines[idx2][i]);
+            auto i = nearest12[0].idx;//idx of the nearest point in polyline[idx2]
+            polylines[idx1].push_back(polylines[idx2][i]);
         }
         if (minElementIndex == 2) {
-            auto i = nearest2[0].idx;
-            smoothLines[idx1].push_back(smoothLines[idx2][i]);
+            auto i = nearest21[0].idx;//idx of the nearest point in polyline[idx1]
+            polylines[idx2].insert(polylines[idx2].begin(), polylines[idx1][i]);
         }
         if (minElementIndex == 3) {
-            auto i = nearest3[0].idx;
-            smoothLines[idx2].insert(smoothLines[idx2].begin(), smoothLines[idx1][i]);
-        }
-        if (minElementIndex == 4) {
-            auto i = nearest4[0].idx;
-            smoothLines[idx2].push_back(smoothLines[idx1][i]);
+            auto i = nearest22[0].idx;//idx of the nearest point in polyline[idx1]
+            polylines[idx2].push_back(polylines[idx1][i]);
         }
     }
-    */
-
+    
     ////////////////////////////////////////
     //float connect_thresh = 80;
     ////////////////////////////////////////
@@ -97,6 +101,5 @@
             }
         }
     }
-    
+    */
 }
-*/

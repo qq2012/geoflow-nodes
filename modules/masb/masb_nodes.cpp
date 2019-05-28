@@ -279,7 +279,8 @@ namespace geoflow::nodes::mat {
         junction_.reserve(junction.size());
         for (auto&p : junction)
             junction_.push_back({ p[0],p[1],p[2] });
-        //output("sheet-sheet adjacency", typeid(ridge::int_pair_vec));
+
+        output("sheet-sheet adjacency").set(adjacency);
         output("junction points").set(junction_);
     };
     void MaPt_in_oneTraceNode::process() {
@@ -425,7 +426,6 @@ namespace geoflow::nodes::mat {
         output("candidate_points_direction").set(candidate_direction_);
     }
 
-
     void ReadCandidatePtNode::process() {
         PointCollection candidate_r_;
         vec3f direction_;
@@ -482,7 +482,6 @@ namespace geoflow::nodes::mat {
     }
 
     void ReadCandidatePtWithBisecNode::process() {
-
         std::string filepath = param<std::string>("filepath");
         std::cout << "start load point cloud\n";
 
@@ -784,13 +783,17 @@ namespace geoflow::nodes::mat {
 
         std::cout << "connect candidate points to closest neighbour "
             <<"and symplify as one polyline" << std::endl;
-        ridge::connectCandidatePt8MST(candidate_pt, pt_directon, candidate_pt_id, adjacency,
+        ridge::connectCandidatePt8MST(candidate_pt, pt_directon, candidate_pt_id,
             mstLineSegment, mstLineSegment_id, polylines_maxDistance, polylines_maxAccDist, 
             polylines_maxPts, polyline_id);
+ 
+        ridge::PolyineList linesWithJunction1 = polylines_maxAccDist;
+        ridge::FindTopology(linesWithJunction1, polyline_id, adjacency);
+
+        ridge::PolyineList linesWithJunction2 = polylines_maxDistance;
+        ridge::FindTopology(linesWithJunction2, polyline_id, adjacency);
 
         //ridge::connectCandidatePtSmooth(symple_segmentList, smoothLine);
-        //ridge::PolyineList linesWithJunction = polylines_maxAccDist;
-        //ridge::FindTopology(linesWithJunction, polyline_id, adjacency);
         //std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
         //ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter2, segmentList_nosegid);
 
@@ -834,14 +837,38 @@ namespace geoflow::nodes::mat {
         for (auto i : polyline_id)
             polyline_id_.push_back(i);
 
+        LineStringCollection linesWithJunction_maxAccDist_;
+        linesWithJunction_maxAccDist_.reserve(linesWithJunction1.size());
+        for (auto &a_line : linesWithJunction1) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            linesWithJunction_maxAccDist_.push_back(tmp);
+        }
+
+        LineStringCollection linesWithJunction_maxDistance_;
+        linesWithJunction_maxDistance_.reserve(linesWithJunction2.size());
+        for (auto&a_line : linesWithJunction2) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            linesWithJunction_maxDistance_.push_back(tmp);
+        }
+
+
         output("mstLineSegment").set(mstLineSegment_);
         output("mstLineSegment_id").set(mstLineSegment_id_);
         output("polylines_maxDistance").set(polylines_maxDistance_);
         output("polylines_maxAccDist").set(polylines_maxAccDist_);
         //output("polylines_maxPts").set(polylines_maxPts_);
         output("polyline_id").set(polyline_id_);
-
+        output("linesWithJunction_maxAccDist").set(linesWithJunction_maxAccDist_);
+        output("linesWithJunction_maxDistance").set(linesWithJunction_maxDistance_);
     }
+
+
     void PLYLoaderNode::process() {
         int k = param<int>("thinning_factor");
         std::string filepath = param<std::string>("filepath");

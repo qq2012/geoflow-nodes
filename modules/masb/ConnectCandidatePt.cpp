@@ -19,7 +19,7 @@ typedef boost::graph_traits<Graph>::vertex_iterator     VertexIterator;
 // edge iterator (from which you can traverse all the edges of a graph)
 //typedef boost::graph_traits<Graph>::edge_iterator       EdgeIterator;
 
-void ridge::connectCandidatePt8MST(masb::PointList &pts, masb::VectorList &pt_directon, masb::intList &pt_id, ridge::int_pair_vec &adjacency,
+void ridge::connectCandidatePt8MST(masb::PointList &pts, masb::VectorList &pt_directon, masb::intList &pt_id,
     ridge::LineSegmentList &mstLineSegment, masb::intList &mstLineSegment_id, 
     ridge::PolyineList &polylines_maxDistance, ridge::PolyineList &polylines_maxAccDist,ridge::PolyineList &polylines_maxPts,
     masb::intList &polyline_id){

@@ -105,18 +105,18 @@ namespace geoflow::nodes::mat {
     public:
         using Node::Node;
         void init() {
-            add_param("mincount", (int)10);
+            add_param("mincount", (int)50);
             add_param("maxcount", (int)1000);
             add_param("bisec_thres", (float)3.0);
             add_param("spokecross_thres", (float)3.0);
-            add_param("balloverlap_thres", (float)3.0);
+            add_param("balloverlap_thres", (float)5.0);
 
             add_input("mat", typeid(masb::MAT));
             add_output("seg_id", typeid(vec1i));
             add_output("sheets", typeid(masb::Sheet_idx_List));
         }
         void gui() {
-            ImGui::SliderInt("mincount", &param<int>("mincount"), 50, 200);
+            ImGui::SliderInt("mincount", &param<int>("mincount"), 10, 200);
             ImGui::SliderInt("maxcount", &param<int>("maxcount"), 100, 2000);
 
             const char* items[] = { "bisector", "spokecross","balloverlap",
@@ -172,7 +172,7 @@ namespace geoflow::nodes::mat {
         using Node::Node;
         void init() {
             add_param("searchRadius", (float) 20.00);
-            add_param("adjacency_thresh", (int)0);
+            add_param("adjacency_thresh", (int)10);
             add_input("mat", typeid(masb::MAT));
             add_input("sheets", typeid(masb::Sheet_idx_List));
             add_output("sheet-sheet adjacency", typeid(ridge::int_pair_vec));
@@ -180,7 +180,7 @@ namespace geoflow::nodes::mat {
         }
         void gui() {
             ImGui::SliderFloat("searchRadius", &param<float>("searchRadius"), 0, 200);
-            ImGui::SliderInt("adjacency_thresh", &param<int>("adjacency_thresh"), 0, 3000);
+            ImGui::SliderInt("adjacency_thresh", &param<int>("adjacency_thresh"), 0, 100);
         }
         void process();
     };
@@ -238,7 +238,7 @@ namespace geoflow::nodes::mat {
             ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 20, 100);
             ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 45);
             ImGui::SliderInt("bis_avg_knn", &param<int>("bis_avg_knn"), 5, 50);
-            ImGui::SliderFloat("filterDistance", &param<float>("deviationAng_thres"), 0.1, 10);
+            ImGui::SliderFloat("filterDistance", &param<float>("filterDistance"), 0.1, 10);
         }
         void process();
     };
@@ -357,6 +357,9 @@ namespace geoflow::nodes::mat {
             add_output("polylines_maxAccDist", typeid(LineStringCollection));
             //output("polylines_maxPts", typeid(LineStringCollection));
             add_output("polyline_id", typeid(vec1i));
+
+            add_output("linesWithJunction_maxAccDist", typeid(LineStringCollection));
+            add_output("linesWithJunction_maxDistance", typeid(LineStringCollection));
         }
         void process();
     };
