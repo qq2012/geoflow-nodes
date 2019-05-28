@@ -9,10 +9,10 @@
 namespace masb {
     class ExtractCandidatePt_pram {
     public:
-        //std::string method = "fixe radius";
-        //int k_neighbours;
         float SearchRadius;// = 45;
         float deviationAng_thres;// = 15.0; cosin value
+        int bis_avg_knn;
+        float filterDistance;
         //ExtractCandidatePt_pram() {
         //    this->deviationAng_thres = cos((this->deviationAng_thres / 180.0)*PI);
         //}
@@ -21,34 +21,27 @@ namespace masb {
     public:
         ExtractCandidatePt_pram power;
 
+        MAT edgeBalls;
+        intList edgeBall_id;
+
         PointList can_pt_r;
         PointList can_pt_cos;
-        PointList can_pt_bisector_avg;
-        intList seg_id;
-        VectorList direction;
-        VectorList cp;
-        VectorList cq;
-        //std::vector<PointList> candidate_r, candidate_cos;
-        //std::vector <VectorList> candidate_dir;
-        //size_t candidate_size = 0;
+        PointList can_pt_r_bisector_avg;
 
-        /*
-            auto pointCloud_ptcollection = input("pointCloud").get<PointCollection>();
-    auto candidate_r_ptcollection = input("candidate").get<PointCollection>();
-    auto directon_vec3f = input("directon").get<vec3f>();
-    auto seg_id_vec1i = input("seg_id").get<vec1i>();
-    auto bisector_p_vec3f = input("bisector_p").get<vec3f>();
-    auto bisector_q_vec3f = input("bisector_q").get<vec3f>();
-    auto adjacency = input("adjacency").get<ridge::int_pair_vec>();
-        */
+        intList filter;
+        PointList candidate_pt;
+        intList candidate_id;
 
-
-        void processing(ExtractCandidatePt_pram & power, mat_data &madata, ma_Geometry &maGeometry, Sheet_idx_List &sheets,
+        void processing_old(ExtractCandidatePt_pram & power, mat_data &madata, ma_Geometry &maGeometry, Sheet_idx_List &sheets,
             PointCloud &PointCloud);
+        void processing(ExtractCandidatePt_pram & power, MAT &mat, PointList &pointcloud, intList &seg_id);
     private:
-        size_tList find_trace(ExtractCandidatePt_pram &power, size_t &pt_idx,
-            mat_data &maData, ma_Geometry &maGeometry, intList &visitFlag);
+        //PointList remainingPt;
         inline bool validateCandidate(float deviationAng_thres, Vector &vec1, Vector &vec2);
+        void EdgeBallDetection(ExtractCandidatePt_pram & power, MAT &mat,int cur_id);
+        //void EdgeBall2CandidatePt();
+        void filterCandidatePt(ExtractCandidatePt_pram & power, PointList &pointcloud);
+        //void spatialInterpolation(PointList &pointcloud);
     };
 }
 #endif

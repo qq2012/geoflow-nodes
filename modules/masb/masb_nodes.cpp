@@ -262,7 +262,7 @@ namespace geoflow::nodes::mat {
         }
 
         output("seg_id").set(seg_id_);
-
+        output("sheets").set(segmentation.shape);
     }
 
     void MaPt_in_oneTraceNode::process() {
@@ -315,112 +315,89 @@ namespace geoflow::nodes::mat {
     }
 
     void ExtractCandidatePtNode::process() {
-        auto madata = input("madata").get<masb::mat_data>();
-        auto maGeometry = input("maGeometry").get<masb::ma_Geometry>();
-        auto sheets = input("sheets").get<masb::Sheet_idx_List>();
-
-        auto pointcloud = input("point cloud coords").get<PointCollection>();
-        auto pointcloud_norm = input("point cloud normal").get<vec3f>();
-
+        auto mat = input("mat").get<masb::MAT>();
+        auto seg_id_vec1i = input("seg_id").get<vec1i>();
+        auto pointcloud_PointCollection = input("pointcloud").get<PointCollection>();
+        
         masb::ExtractCandidatePt_pram  params;
         params.SearchRadius = param<float>("SearchRadius");
         params.deviationAng_thres = cos((param<float>("deviationAng_thres") / 180.0)*PI);
         std::cout << "deviationAng_thres is " << param<float>("deviationAng_thres") << " degree"
             << "cos (deviationAng_thres) is" << params.deviationAng_thres << std::endl;
+        params.bis_avg_knn = param<int>("bis_avg_knn");
+        params.filterDistance = param<float>("filterDistance");
 
-        masb::PointCloud PointCloud;
-        masb::PointList pc_coords_;
-        pc_coords_.reserve(madata.m);
-        for (auto &p : pointcloud)
-            pc_coords_.push_back(masb::Point(p.data()));
-        masb::VectorList pc_normals_;
-        pc_normals_.reserve(madata.m);
-        for (auto &v : pointcloud_norm)
-            pc_normals_.push_back(masb::Vector(v.data()));
-        PointCloud.coords = pc_coords_;
-        PointCloud.normals = pc_normals_;
+        masb::PointList pointcloud;
+        pointcloud.reserve(pointcloud_PointCollection.size());
+        for (auto &p : pointcloud_PointCollection)
+            pointcloud.push_back(masb::Point(p.data()));
 
+        masb::intList seg_id;
+        seg_id.reserve(seg_id_vec1i.size());
+        for (auto id : seg_id_vec1i)
+            seg_id.push_back(id);
 
         masb::ExtractCandidatePt extractor;
-        extractor.processing(params, madata, maGeometry, sheets, PointCloud);
+        extractor.processing(params,mat, pointcloud, seg_id);
+
+        PointCollection edgeBalls_atoms_; 
+        vec1i edgeBall_id_;
 
         PointCollection candidate_r_, candidate_cos_;
-        PointCollection candidate_bisector_avg_;
-        vec1i seg_id_;
-        vec3f spokV_cp_, spokV_cq_, direction_;
+        PointCollection candidate_r_bisector_avg_;
 
-        int s = extractor.can_pt_r.size();
+        vec1i filter_;
+        PointCollection candidate_points_;
+        vec1i candidate_points_id_;
+
+        int s = extractor.edgeBalls.matSize;
+        edgeBalls_atoms_.reserve(s);
+        for (auto &p : extractor.edgeBalls.atom)
+            edgeBalls_atoms_.push_back({ p[0],p[1],p[2] });
+
+        edgeBall_id_.reserve(s);
+        for (auto id : extractor.edgeBall_id)
+            edgeBall_id_.push_back(id);
+
         candidate_r_.reserve(s);
+        for (auto&p : extractor.can_pt_r)
+            candidate_r_.push_back({ p[0],p[1],p[2] });
+
         candidate_cos_.reserve(s);
-        candidate_bisector_avg_.reserve(s);
-        seg_id_.reserve(s);
-        spokV_cp_.reserve(s);
-        spokV_cq_.reserve(s);
-        direction_.reserve(s);
-        for (int i = 0; i < s; ++i) {
-            if (extractor.seg_id[i] == 0)
-                continue;
-            auto c1 = extractor.can_pt_r[i];
-            candidate_r_.push_back({ c1[0],c1[1],c1[2] });
+        for (auto&p : extractor.can_pt_cos)
+            candidate_cos_.push_back({ p[0],p[1],p[2] });
 
-            auto c2 = extractor.can_pt_cos[i];
-            candidate_cos_.push_back({ c2[0],c2[1,c2[2]] });
+        candidate_r_bisector_avg_.reserve(s);
+        for (auto&p : extractor.can_pt_r_bisector_avg)
+            candidate_r_bisector_avg_.push_back({ p[0],p[1],p[2] });
 
-            auto c3 = extractor.can_pt_bisector_avg[i];
-            candidate_bisector_avg_.push_back({ c3[0],c3[1],c3[2] });
+        int s2 = extractor.candidate_pt.size();
+        filter_.reserve(s2);
+        for (auto i : extractor.filter)
+            filter_.push_back(i);
 
-            seg_id_.push_back(extractor.seg_id[i]);
+        candidate_points_.reserve(s2);
+        for (auto &p : extractor.candidate_pt)
+            candidate_points_.push_back({ p[0],p[1],p[2] });
 
-            auto v1 = extractor.cp[i];
-            spokV_cp_.push_back({ v1[0],v1[1],v1[2] });
+        candidate_points_id_.reserve(s2);
+        for (auto i : extractor.candidate_id)
+            candidate_points_id_.push_back(i);
 
-            auto v2 = extractor.cq[i];
-            spokV_cq_.push_back({ v2[0],v2[1],v2[2] });
+        std::cout << "ExtractCandidatePtNode:: there are " << s2 << " candidate points" << std::endl;
 
-            auto d = extractor.direction[i];
-            direction_.push_back({ d[0],d[1],d[2] });
-        }
-
-        std::cout << "ExtractCandidatePtNode:: there are " << candidate_r_.size() << " candidate points" << std::endl;
-
+        output("edgeBallAtom").set(edgeBalls_atoms_);
+        output("edgeBall_id").set(edgeBall_id_);
         output("candidate_r").set(candidate_r_);
         output("candidate_cos").set(candidate_cos_);
-        output("candidate_bisector_avg").set(candidate_bisector_avg_);
-        output("seg_id").set(seg_id_);
-        output("spoke_cp").set(spokV_cp_);
-        output("spoke_cq").set(spokV_cq_);
-        output("direction").set(direction_);
+        output("candidate_r_bisector_avg").set(candidate_r_bisector_avg_);
+        output("filter").set(filter_);
+        output("candidate_points").set(candidate_points_);
+        output("candidate_points_id").set(candidate_points_id_);
 
-        /*
-        PointCollection candidate_r_, candidate_cos_;
-        candidate_r_.reserve(extractor.candidate_size);
-        candidate_cos_.reserve(extractor.candidate_size);
-        int i = 0;
-        for (auto canInSheet : extractor.candidate_r) {
-            if (i == 0) {
-                i++;
-                continue;
-            }
-            for (auto p : canInSheet) {
-                candidate_r_.push_back({ p[0], p[1], p[2] });
-            }
-            i++;
-        }
-        int j = 0;
-        for (auto canInSheet : extractor.candidate_cos) {
-            if (j == 0) {
-                j++;
-                continue;
-            }
-            for (auto p : canInSheet) {
-                candidate_cos_.push_back({ p[0], p[1], p[2] });
-            }
-            j++;
-        }
-        output("candidate_r").set(candidate_r_);
-        output("candidate_cos").set(candidate_cos_);
-        */
     }
+
+
     void ReadCandidatePtNode::process() {
         PointCollection candidate_r_;
         vec3f direction_;

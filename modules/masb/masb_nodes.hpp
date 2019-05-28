@@ -112,7 +112,7 @@ namespace geoflow::nodes::mat {
 
             add_input("mat", typeid(masb::MAT));
             add_output("seg_id", typeid(vec1i));
-
+            add_output("sheets", typeid(masb::Sheet_idx_List));
         }
         void gui() {
             ImGui::SliderInt("mincount", &param<int>("mincount"), 5, 200);
@@ -189,27 +189,35 @@ namespace geoflow::nodes::mat {
         void init() {
             add_param("SearchRadius", (float) 45.00);
             add_param("deviationAng_thres", (float) 15.00);
+            add_param("filterDistance", (float) 5.00);
+            add_param("bis_avg_knn", (int)20);
 
-            add_input("madata", typeid(masb::mat_data));
-            add_input("maGeometry", typeid(masb::ma_Geometry));
-            add_input("sheets", typeid(masb::Sheet_idx_List));
+            add_input("mat", typeid(masb::MAT));
+            add_input("seg_id", typeid(vec1i));
+            add_input("pointcloud", typeid(PointCollection));
 
-            add_input("point cloud coords", typeid(PointCollection));
-            add_input("point cloud normal", typeid(vec3f));
+            //add_output("edgeBall", typeid(masb::MAT));
+            add_output("edgeBallAtom", typeid(PointCollection));
+            //add_output("sp_reverse_norm", typeid(vec3f));
+            //add_output("spokeVectorP", typeid(vec3f));
+            //add_output("spokeVectorQ", typeid(vec3f));
+            //add_output("bisector", typeid(vec3f));
+            //add_output("ma_direction", typeid(vec3f));
+            add_output("edgeBall_id", typeid(vec1i));
 
             add_output("candidate_r", typeid(PointCollection));
             add_output("candidate_cos", typeid(PointCollection));
-            add_output("candidate_bisector_avg", typeid(PointCollection));
-            add_output("seg_id", typeid(vec1i));
-            add_output("spoke_cp", typeid(vec3f));
-            add_output("spoke_cq", typeid(vec3f));
-            add_output("direction", typeid(vec3f));
+            add_output("candidate_r_bisector_avg", typeid(PointCollection));
+
+            add_output("filter", typeid(vec1i));
+            add_output("candidate_points", typeid(PointCollection));
+            add_output("candidate_points_id", typeid(vec1i));
         }
         void gui() {
             ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 20, 100);
-
-            //ImGui::SliderInt("deviationAng_thres", &param<int>("deviationAng_thres"), 0, 30);
             ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 45);
+            ImGui::SliderInt("bis_avg_knn", &param<int>("bis_avg_knn"), 5, 50);
+            ImGui::SliderFloat("filterDistance", &param<float>("deviationAng_thres"), 0.1, 10);
         }
         void process();
     };
