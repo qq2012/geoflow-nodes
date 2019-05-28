@@ -19,36 +19,18 @@ typedef boost::graph_traits<Graph>::vertex_iterator     VertexIterator;
 // edge iterator (from which you can traverse all the edges of a graph)
 //typedef boost::graph_traits<Graph>::edge_iterator       EdgeIterator;
 
-void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList &candidate,
-    masb::intList &seg_id, masb::intList &filter, ridge::segment &segmentList, masb::intList &idList,
-    line &symple_segmentList, masb::intList &symple_idList){
-    
-    //dis_list;
-    seg_id;
-    /*
-    masb::intList seg_id_test = seg_id;
-    //int j = 0;
-    std::map<int, int> seg_frequency;
-    for (auto i : seg_id_test) {
-        //std::cout << "i" << i << "j" << j << std::endl;
-        ++seg_frequency[i];
-        //j++;
-    }
-    for (const auto& e : seg_frequency)
-        std::cout << "Element " << e.first 
-         << " encountered " << e.second << " times\n";
-*/
-    std::map<int, int> seg_frequency;
-    for (auto i : seg_id) {
-    //    std::cout << "i"<<i <<"j"<<j<< std::endl;
-        ++seg_frequency[i];
-    //    j++;
-    }
-        
-    for (const auto& e : seg_frequency)
-        std::cout << "Element " << e.first 
-         << " encountered " << e.second << " times\n";
+void ridge::connectCandidatePt8MST(masb::PointList &pts, masb::VectorList &pt_directon, masb::intList &pt_id, ridge::int_pair_vec &adjacency,
+    ridge::LineSegmentList &mstLineSegment, masb::intList &mstLineSegment_id, 
+    ridge::PolyineList &polylines_maxDistance, ridge::PolyineList &polylines_maxAccDist,ridge::PolyineList &polylines_maxPts,
+    masb::intList &polyline_id){
 
+    std::map<int, int> seg_frequency;
+    for (auto i : pt_id) {
+        ++seg_frequency[i];
+    }
+    for (const auto& e : seg_frequency)
+        std::cout << "Element " << e.first 
+         << " encountered " << e.second << " times\n";
     for (const auto& e : seg_frequency) {
         auto cur_sheet = e.first;
         auto cur_size = e.second;
@@ -56,54 +38,17 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             continue;
         masb::PointList cur_candidate;
         cur_candidate.reserve(cur_size);
-        for (int i = 0; i < seg_id.size(); i++) {
-            if (seg_id[i] == cur_sheet) {
-                cur_candidate.push_back(candidate[i]);
+        for (int i = 0; i < pt_id.size(); i++) {
+            if (pt_id[i] == cur_sheet) {
+                cur_candidate.push_back(pts[i]);
             }
         }
         if (cur_candidate.size() != cur_size)
             std::cout << "Error" << std::endl;
         
-        /*
-        //example
-        const int num_nodes = 5;
-        E edge_array[] = { E(0, 2), E(1, 3), E(1, 4), E(2, 1), E(2, 3),
-          E(3, 4), E(4, 0), E(4, 1)
-        };
-        int weights[] = { 1, 1, 2, 7, 3, 1, 1, 1 };
-        std::size_t num_edges = sizeof(edge_array) / sizeof(E);
-        Graph g(edge_array, edge_array + num_edges, weights, num_nodes);
-        */
-        /*
-        //initialize graph  -- wrong??why????????????????????????
-        cur_size = 20;
-        Graph g;
-        for (int i = 0; i < cur_size; i++) {
-            Vertex vdi = boost::add_vertex(Vertex_Id(i), g);
-        }
-        if (boost::num_vertices(g) != cur_size)
-            std::cout << "error in adding vertices" << std::endl;
+        float maxDistance = 0;
+        int maxDistance_idx1, maxDistance_idx2;
 
-        std::pair<VertexIterator, VertexIterator> v = boost::vertices(g);
-        int i = 0;
-        for (VertexIterator vi = v.first; vi != v.second; ++vi) {
-            //vi.first -- begin ; vi.second -- end;
-            Vertex vdi = *vi;
-            int j = i + 1;
-            for (VertexIterator vj = vi+1; vj != v.second; ++vj) {
-                Vertex vdj = *vj;
-                auto wij = Vrui::Geometry::sqrDist(cur_candidate[i], cur_candidate[j]);
-                boost::add_edge(vdi, vdi, EdgeWeightProperty(wij), g);
-                //std::cout << "add edge " << i << " -- " << j << std::endl;
-                j++;
-            }
-            i++;
-        }
-        if (boost::num_edges(g) != cur_size * (cur_size - 1) / 2)
-            std::cout << "error in adding edge" << std::endl;
-        */
-        float maxWeight = 0;
-        int maxWeight_idx1, maxWeight_idx2;
         std::cout << "start connect ridge " << cur_sheet << std::endl;
         //cur_size = 200;
         Graph g(cur_size);
@@ -117,10 +62,10 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
                 boost::tie(e, inserted) = add_edge(ea.first, ea.second, g);
                 auto wi = Vrui::Geometry::dist(cur_candidate[i], cur_candidate[j]);
                 weightmap[e] = wi;
-                if (wi > maxWeight) {
-                    maxWeight = wi;
-                    maxWeight_idx1 = i;
-                    maxWeight_idx2 = j;
+                if (wi > maxDistance) {
+                    maxDistance = wi;
+                    maxDistance_idx1 = i;
+                    maxDistance_idx2 = j;
                 }
             }
         }
@@ -152,11 +97,11 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             auto idx_q = target(*ei, g);
             masb::Point p = cur_candidate[idx_p];
             masb::Point q = cur_candidate[idx_q];
-            segmentList.push_back(ridge::PointPair(p, q));
+            mstLineSegment.push_back(ridge::PointPair(p, q));
         }
         masb::intList temp;
         temp.resize(cur_size - 1, cur_sheet);
-        idList.insert(idList.end(), temp.begin(), temp.end());
+        mstLineSegment_id.insert(mstLineSegment_id.end(), temp.begin(), temp.end());
         
         
         Graph g_short;
@@ -174,70 +119,28 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             weightmap_s[e] = weight[*ei];
         }
 
-
         std::vector<Vertex> p(num_vertices(g_short));
         std::vector<float> d(num_vertices(g_short));
         property_map<Graph, vertex_index_t>::type indexmap = get(vertex_index, g_short);
         //property_map<Graph, edge_weight_t>::type weightmap_s = get(edge_weight, g_short);
 
+        std::cout << "start symplify MST as one polyline by maxDistance" << std::endl;
+        Vertex maxDistanceStart = vertex(maxDistance_idx1, g_short);
+        Vertex maxDistanceEnd = vertex(maxDistance_idx2, g_short);
+        std::cout << "longest path -- " << maxDistance
+            << " starts at point -- " << indexmap[maxDistanceStart]<<" ("<< maxDistance_idx1<<")"
+            << " ends at point -- " << indexmap[maxDistanceEnd] << " (" << maxDistance_idx2 << ")\n";
 
-
-        /*float maxWeight = 0;
-        Vertex maxEnd;
-        Vertex maxStart;
-        */
-        //for (std::size_t j = 0; j < cur_size; ++j) {
-            //Vertex s = vertex(j, g_short);
-            //dijkstra_shortest_paths(g_short, s, &p[0], &d[0], weightmap_s, indexmap,
-            //    std::less<int>(), closed_plus<int>(),
-            //    (std::numeric_limits<int>::max)(), 0,
-            //    default_dijkstra_visitor());
-            //dijkstra_shortest_paths(g_short, s, predecessor_map(&p[0]).distance_map(&d[0]));
-            /*
-            std::cout << "distances and parents:" << std::endl;
-            graph_traits < Graph >::vertex_iterator vi, vend;
-            for (tie(vi, vend) = vertices(g_short); vi != vend; ++vi) {
-                std::cout << "distance(" << indexmap[*vi] << ") = " << d[*vi] << ", ";
-                std::cout << "parent(" << indexmap[*vi] << ") = " << indexmap[p[*vi]] << std::
-                    endl;
-            }
-            std::cout << std::endl;
-            */
-        /*
-            graph_traits < Graph >::vertex_iterator vii, vendd;
-            for (tie(vii, vendd) = vertices(g_short); vii != vendd; ++vii) {
-                if (maxWeight < d[*vii]) {
-                    maxWeight = d[*vii];
-                    maxEnd = *vii;
-                    maxStart = s;
-                }
-            }           
-        }
-        
-        
-        //because d,p are modified, need to calculate shortest path again
-        */
-
-        //dijkstra_shortest_paths(g_short, maxStart, predecessor_map(&p[0]).distance_map(&d[0]));
-       
-
-        Vertex maxStart = vertex(maxWeight_idx1, g_short);
-        Vertex maxEnd = vertex(maxWeight_idx2, g_short);
-
-        std::cout << "longest path -- " << maxWeight
-            << " starts at point -- " << indexmap[maxStart]<<" ("<< maxWeight_idx1<<")"
-            << " ends at point -- " << indexmap[maxEnd] << " (" << maxWeight_idx2 << ")\n";
-
-        dijkstra_shortest_paths(g_short, maxStart, predecessor_map(&p[0]).distance_map(&d[0]));
+        dijkstra_shortest_paths(g_short, maxDistanceStart, predecessor_map(&p[0]).distance_map(&d[0]));
 
         std::vector< graph_traits< Graph >::vertex_descriptor > path;
-        graph_traits< Graph >::vertex_descriptor current = maxEnd;
+        graph_traits< Graph >::vertex_descriptor current = maxDistanceEnd;
         
-        while (current != maxStart) {
+        while (current != maxDistanceStart) {
             path.push_back(current);
             current = p[current];
         }
-        path.push_back(maxStart);
+        path.push_back(maxDistanceStart);
         masb::PointList a_line;
         std::vector< graph_traits< Graph >::vertex_descriptor >::iterator it;
         for (it = path.begin(); it != path.end(); ++it) {
@@ -248,65 +151,65 @@ void ridge::connectCandidatePt8MST(masb::PointList &PointCloud, masb::PointList 
             a_line.push_back(pt);
         }
         //std::cout << std::endl;
-        symple_segmentList.push_back(a_line);
-        symple_idList.push_back(cur_sheet);
+        polylines_maxDistance.push_back(a_line);
+        polyline_id.push_back(cur_sheet);
 
+        std::cout << "start symplify MST as one polyline by maxAccDist and maxPtNum" << std::endl;
+        float maxAccDist = 0;
+        int maxPtNum;
+        Vertex maxAccDistStart, maxAccDistEnd;
+        Vertex maxPtNumStart, maxPtNumEnd;
+        for (std::size_t j = 0; j < cur_size; ++j) {
+            Vertex s = vertex(j, g_short);
+            //dijkstra_shortest_paths(g_short, s, &p[0], &d[0], weightmap_s, indexmap,
+            //    std::less<int>(), closed_plus<int>(),
+            //    (std::numeric_limits<int>::max)(), 0,
+            //    default_dijkstra_visitor());
+            dijkstra_shortest_paths(g_short, s, predecessor_map(&p[0]).distance_map(&d[0]));
+            //std::cout << "distances and parents:" << std::endl;
+            //graph_traits < Graph >::vertex_iterator vi, vend;
+            //for (tie(vi, vend) = vertices(g_short); vi != vend; ++vi) {
+            //    std::cout << "distance(" << indexmap[*vi] << ") = " << d[*vi] << ", ";
+            //    std::cout << "parent(" << indexmap[*vi] << ") = " << indexmap[p[*vi]] << std::
+            //        endl;
+            //}
+            //std::cout << std::endl;
 
-
-        /*
-        //example for shortest path
-        typedef adjacency_list < listS, vecS, directedS,no_property, property < edge_weight_t, float > > graph_t;
-        typedef graph_traits < graph_t >::vertex_descriptor vertex_descriptor;
-        typedef graph_traits < graph_t >::edge_descriptor edge_descriptor;
-        typedef std::pair<int, int> Edge;
-
-        const int num_nodes = 5;
-        enum nodes { A, B, C, D, E };
-        char name[] = "ABCDE";
-        Edge edge_array[] = { Edge(A, C), Edge(B, B), Edge(B, D), Edge(B, E),
-          Edge(C, B), Edge(C, D), Edge(D, E), Edge(E, A), Edge(E, B)
-        };
-        float weights[] = { 1.1, 2.1, 1.2, 2.2, 7.7, 3.4, 1.6, 1.76, 1.0 };
-        int num_arcs = sizeof(edge_array) / sizeof(Edge);
-        #if defined(BOOST_MSVC) && BOOST_MSVC <= 1300
-        graph_t g(num_nodes);
-        property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
-        for (std::size_t j = 0; j < num_arcs; ++j) {
-            edge_descriptor e; bool inserted;
-            tie(e, inserted) = add_edge(edge_array[j].first, edge_array[j].second, g);
-            weightmap[e] = weights[j];
+            graph_traits < Graph >::vertex_iterator vii, vendd;
+            for (tie(vii, vendd) = vertices(g_short); vii != vendd; ++vii) {
+                if (maxAccDist < d[*vii]) {
+                    maxAccDist = d[*vii];
+                    maxAccDistEnd = *vii;
+                    maxAccDistStart = s;
+                }
+            }
         }
-        #else
-        graph_t g(edge_array, edge_array + num_arcs, weights, num_nodes);
-        property_map<graph_t, edge_weight_t>::type weightmap = get(edge_weight, g);
-        #endif
-        std::vector<vertex_descriptor> p(num_vertices(g));
-        std::vector<float> d(num_vertices(g));
-        vertex_descriptor s = vertex(A, g);
+        //because d,p are modified, need to calculate shortest path again
+        dijkstra_shortest_paths(g_short, maxAccDistStart, predecessor_map(&p[0]).distance_map(&d[0]));
 
-        #if defined(BOOST_MSVC) && BOOST_MSVC <= 1300
-        // VC++ has trouble with the named parameters mechanism
-        property_map<graph_t, vertex_index_t>::type indexmap = get(vertex_index, g);
-        dijkstra_shortest_paths(g, s, &p[0], &d[0], weightmap, indexmap,
-            std::less<int>(), closed_plus<int>(),
-            (std::numeric_limits<int>::max)(), 0,
-            default_dijkstra_visitor());
-        #else
-        dijkstra_shortest_paths(g, s, predecessor_map(&p[0]).distance_map(&d[0]));
-        #endif
+        std::vector< graph_traits< Graph >::vertex_descriptor > path2;
+        graph_traits< Graph >::vertex_descriptor current2 = maxAccDistEnd;
 
-        std::cout << "distances and parents:" << std::endl;
-        graph_traits < graph_t >::vertex_iterator vi, vend;
-        for (tie(vi, vend) = vertices(g); vi != vend; ++vi) {
-            std::cout << "distance(" << name[*vi] << ") = " << d[*vi] << ", ";
-            std::cout << "parent(" << name[*vi] << ") = " << name[p[*vi]] << std::
-                endl;
+        while (current2 != maxAccDistStart) {
+            path2.push_back(current2);
+            current2 = p[current2];
         }
-        std::cout << std::endl;
+        path2.push_back(maxAccDistStart);
+        masb::PointList a_line2;
+        std::vector< graph_traits< Graph >::vertex_descriptor >::iterator it2;
+        for (it2 = path2.begin(); it2 != path2.end(); ++it2) {
+            //std::cout << indexmap[*it] << " ";
+            auto pt_idx = indexmap[*it2];
+            masb::Point pt = cur_candidate[pt_idx];
+            //std::cout << pt[0] << " " << pt[1] << " " << pt[2] << std::endl;
+            a_line2.push_back(pt);
+        }
+        //std::cout << std::endl;
+        polylines_maxAccDist.push_back(a_line2);
 
-        */
     }
 }
+/*
 void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList & candidate, masb::intList &filter, segment &segmentList) {
     /////////////////////////////////////////
     float filter_thresh = 100.0;
@@ -376,3 +279,4 @@ void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::Po
         }
     }
 }
+*/

@@ -19,7 +19,7 @@ typedef std::vector<Point_with_normal>                       Pwn_vector;
 typedef CGAL::First_of_pair_property_map<Point_with_normal>  Point_map;
 typedef CGAL::Second_of_pair_property_map<Point_with_normal> Normal_map;
 
-void ridge::connectCandidatePtSmooth(line &symple_segmentList, line &smoothLine) {
+void ridge::connectCandidatePtSmooth(PolyineList &symple_segmentList, PolyineList &smoothLine) {
     std::cout << "start sommthing" << std::endl;
     for (auto &a_line:symple_segmentList) {
 

@@ -11,7 +11,7 @@
 using namespace Eigen;
 
 void ridge::connectCandidatePt8Spline(masb::PointList &PointCloud, masb::PointList &candidate,
-    masb::intList &seg_id, masb::intList &filter, ridge::line &line_segmentList, masb::intList &idList) {
+    masb::intList &seg_id, masb::intList &filter, ridge::PolyineList &line_segmentList, masb::intList &idList) {
     float filter_thresh = 5.0;
 
     kdtree2::KDTree* pc_kdtree;

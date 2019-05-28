@@ -199,6 +199,8 @@ void ExtractCandidatePt::filterCandidatePt(ExtractCandidatePt_pram & power, Poin
             auto xyz = this->can_pt_r_bisector_avg[i];
             auto z_NN = pointcloud[neighbours[0].idx][2];
             this->candidate_pt.push_back({ xyz[0],xyz[1], z_NN });
+            this->candidate_radius.push_back(this->edgeBalls.radius[i]);
+            this->candidate_direction.push_back(this->edgeBalls.ma_direction[i]);
         }
     }
 }

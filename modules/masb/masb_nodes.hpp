@@ -6,6 +6,7 @@
 #include "Ma_geometry_processing.hpp"
 #include "Ma_utility.h"
 #include "Ma_Segmentation_processing.h"
+#include "sheet_adjacency.h"
 #include "ExtractCandidatePt.h"
 #include "MaPt_in_oneTrace.h"
 #include "ConnectCandidatePt.h"
@@ -106,16 +107,16 @@ namespace geoflow::nodes::mat {
         void init() {
             add_param("mincount", (int)10);
             add_param("maxcount", (int)1000);
-            add_param("bisec_thres", (float)5.0);
-            add_param("spokecross_thres", (float)5.0);
-            add_param("balloverlap_thres", (float)5.0);
+            add_param("bisec_thres", (float)3.0);
+            add_param("spokecross_thres", (float)3.0);
+            add_param("balloverlap_thres", (float)3.0);
 
             add_input("mat", typeid(masb::MAT));
             add_output("seg_id", typeid(vec1i));
             add_output("sheets", typeid(masb::Sheet_idx_List));
         }
         void gui() {
-            ImGui::SliderInt("mincount", &param<int>("mincount"), 5, 200);
+            ImGui::SliderInt("mincount", &param<int>("mincount"), 50, 200);
             ImGui::SliderInt("maxcount", &param<int>("maxcount"), 100, 2000);
 
             const char* items[] = { "bisector", "spokecross","balloverlap",
@@ -166,6 +167,24 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+    class adjacencyNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_param("searchRadius", (float) 20.00);
+            add_param("adjacency_thresh", (int)0);
+            add_input("mat", typeid(masb::MAT));
+            add_input("sheets", typeid(masb::Sheet_idx_List));
+            add_output("sheet-sheet adjacency", typeid(ridge::int_pair_vec));
+            add_output("junction points", typeid(vec3f));
+        }
+        void gui() {
+            ImGui::SliderFloat("searchRadius", &param<float>("searchRadius"), 0, 200);
+            ImGui::SliderInt("adjacency_thresh", &param<int>("adjacency_thresh"), 0, 3000);
+        }
+        void process();
+    };
+
     class MaPt_in_oneTraceNode :public Node {
     public:
         using Node::Node;
@@ -212,6 +231,8 @@ namespace geoflow::nodes::mat {
             add_output("filter", typeid(vec1i));
             add_output("candidate_points", typeid(PointCollection));
             add_output("candidate_points_id", typeid(vec1i));
+            add_output("candidate_points_radius", typeid(vec1f));
+            add_output("candidate_points_direction", typeid(vec3f));
         }
         void gui() {
             ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 20, 100);
@@ -323,32 +344,19 @@ namespace geoflow::nodes::mat {
     };
     class ConnectCandidatePtNode :public Node {
     public:
-        //masb::_pram params;
-
         using Node::Node;
         void init() {
-            add_input("pointCloud", typeid(PointCollection));
-            add_input("candidate", typeid(PointCollection));
-            add_input("directon", typeid(vec3f));
-            add_input("seg_id", typeid(vec1i));
-            add_input("bisector_p", typeid(vec3f));
-            add_input("bisector_q", typeid(vec3f));
+            add_input("candidate_points", typeid(PointCollection));
+            add_input("point_directon", typeid(vec3f));
+            add_input("candidate_points_id", typeid(vec1i));
             add_input("adjacency", typeid(ridge::int_pair_vec));
 
-            add_output("filter", typeid(vec1i));
-            add_output("ridge", typeid(LineStringCollection));
-            add_output("ridge_nosegid_vis_", typeid(LineStringCollection));
-            add_output("ridgeId", typeid(vec1i));
-            add_output("longest_path", typeid(LineStringCollection));
-            add_output("longest_id", typeid(vec1i));
-            //add_output("smoothLine", typeid(LineStringCollection));
-            //add_output("smoothpoint", typeid(PointCollection));
-            add_output("topology_vis", typeid(LineStringCollection));
-
-            add_output("bisector_p_vis", typeid(LineStringCollection));
-            add_output("bisector_q_vis", typeid(LineStringCollection));
-            add_output("directon_vis", typeid(LineStringCollection));
-            add_output("directon2_vis", typeid(LineStringCollection));
+            add_output("mstLineSegment", typeid(LineStringCollection));
+            add_output("mstLineSegment_id", typeid(vec1i));
+            add_output("polylines_maxDistance", typeid(LineStringCollection));
+            add_output("polylines_maxAccDist", typeid(LineStringCollection));
+            //output("polylines_maxPts", typeid(LineStringCollection));
+            add_output("polyline_id", typeid(vec1i));
         }
         void process();
     };

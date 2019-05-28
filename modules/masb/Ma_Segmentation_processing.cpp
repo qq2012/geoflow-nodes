@@ -15,26 +15,19 @@ inline bool MaSegProcess::if_all_segmented() {
     else
         return true;/* point_segment_idx -- does not contain -1 */
 }
+inline size_t MaSegProcess::findseed(size_t initial_seed_idx) {
+    for (size_t i = initial_seed_idx; i < this->size; ++i) {
+        if (point_segment_idx[i] == -1)
+            return i;
+    }
+}
+/*
 void  MaSegProcess::remaining_idx_remove_idx(long long int id) {
     std::vector<long long int>::iterator it = std::find((*remaining_idx).begin(), (*remaining_idx).end(), id);
     if (it == (*remaining_idx).end())
         std::cout << "remaining_idx_remove_idx -- error " << std::endl;
     int index = std::distance((*remaining_idx).begin(), it);
     (*remaining_idx).erase((*remaining_idx).begin() + index);
-}
-
-inline size_t MaSegProcess::findseed8r(float seed_radius_thres,floatList *ma_radius) {
-    for (size_t i = 1; i < this->size; ++i) {
-        if (point_segment_idx[i] != -1 && (*ma_radius)[i] < seed_radius_thres)
-            return i;
-    }
-}
-
-inline size_t MaSegProcess::findseed(size_t initial_seed_idx) {
-    for (size_t i = initial_seed_idx; i < this->size; ++i) {
-        if (point_segment_idx[i] == -1)
-            return i;
-    }
 }
 size_t MaSegProcess::findseed_random() {
     std::random_device rd; // obtain a random number from hardware
@@ -43,6 +36,7 @@ size_t MaSegProcess::findseed_random() {
     auto random_id = distr(eng);
     return (*remaining_idx)[random_id];
 }
+*/
 inline bool MaSegProcess::valid_candidate_bisec(float bisec_thres,size_t idx1, size_t idx2, MAT&mat) {
     Vector bisec1 = mat.bisector[idx1];
     Vector bisec2 = mat.bisector[idx2];
@@ -97,7 +91,6 @@ void MaSegProcess::grow_sheet(MaSeg_power &power, size_t initial_seed_idx,
     MAT &mat, kdtree2::KDTree *kdtree_ma_atoms) {
     stack<size_t> seeds;
     size_tList idx_in_sheet;
-    //int in_out_flag = madata.in_out[initial_seed_idx];
     /*
     std::cout << "initial_seed_idx--" << initial_seed_idx << "\n";
     std::cout << "bisector-thresh--" << power.bisec_thres << "\n";
@@ -121,8 +114,7 @@ void MaSegProcess::grow_sheet(MaSeg_power &power, size_t initial_seed_idx,
             std::cout << "candidate in_out -- " << madata.in_out[candidate.idx] << "\n";
             */
             if (point_segment_idx[candidate.idx] == -1 &&
-                validateCandidate(power,seed_idx, candidate.idx, mat)
-                ) {
+                validateCandidate(power,seed_idx, candidate.idx, mat)) {
                 //std::cout << "candidate validate, push-- " << candidate.idx << " into seeds,sheet,segment\n";
                 seeds.push(candidate.idx);
                 idx_in_sheet.push_back(candidate.idx);
@@ -139,7 +131,6 @@ void MaSegProcess::grow_sheet(MaSeg_power &power, size_t initial_seed_idx,
     }
     else {
         shape.push_back(idx_in_sheet);
-        //shape_inout.push_back(in_out_flag);
         sheet_counter++;
         //for (size_t &idx : idx_in_sheet) {
         //    remaining_idx_remove_idx(idx);

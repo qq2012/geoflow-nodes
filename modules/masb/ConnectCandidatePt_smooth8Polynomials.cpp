@@ -3,6 +3,6 @@
 #include <unsupported/Eigen/Polynomials>
 #include <iostream>
 
-void ridge::connectCandidatePtSmooth8Polynomials(line &Lines) {
+void ridge::connectCandidatePtSmooth8Polynomials(PolyineList &Lines) {
 
 }

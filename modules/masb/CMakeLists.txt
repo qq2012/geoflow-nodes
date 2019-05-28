@@ -13,6 +13,7 @@ add_library(masb_nodes STATIC
   ConnectCandidatePt_spline.cpp
   FindTopology.cpp
   breaklineValidate.cpp
+  sheet_adjacency.cpp
 )
 
 include_directories(${EIGEN_INCLUDE_DIR})

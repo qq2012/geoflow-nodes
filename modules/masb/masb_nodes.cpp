@@ -264,7 +264,24 @@ namespace geoflow::nodes::mat {
         output("seg_id").set(seg_id_);
         output("sheets").set(segmentation.shape);
     }
+    void adjacencyNode::process(){
+        auto mat = input("mat").get<masb::MAT>();
+        auto sheets = input("sheets").get<masb::Sheet_idx_List>();
+        ridge::adjacency_parameters  params;
+        params.searchRadius = param<float>("searchRadius");
+        params.adjacency_thresh = param<int>("adjacency_thresh");
 
+        ridge::int_pair_vec adjacency;
+        masb::PointList junction;
+        ridge::adjacencyProcessing(params, mat, sheets, adjacency, junction);
+
+        vec3f junction_;
+        junction_.reserve(junction.size());
+        for (auto&p : junction)
+            junction_.push_back({ p[0],p[1],p[2] });
+        //output("sheet-sheet adjacency", typeid(ridge::int_pair_vec));
+        output("junction points").set(junction_);
+    };
     void MaPt_in_oneTraceNode::process() {
         auto madata = input("madata").get<masb::mat_data>();
         auto maGeometry = input("maGeometry").get<masb::ma_Geometry>();
@@ -349,6 +366,8 @@ namespace geoflow::nodes::mat {
         vec1i filter_;
         PointCollection candidate_points_;
         vec1i candidate_points_id_;
+        vec1f candidate_radius_;
+        vec3f candidate_direction_;
 
         int s = extractor.edgeBalls.matSize;
         edgeBalls_atoms_.reserve(s);
@@ -384,6 +403,14 @@ namespace geoflow::nodes::mat {
         for (auto i : extractor.candidate_id)
             candidate_points_id_.push_back(i);
 
+        candidate_radius_.reserve(s2);
+        for (auto r : extractor.candidate_radius)
+            candidate_radius_.push_back(r);
+
+        candidate_direction_.reserve(s2);
+        for (auto&v : extractor.candidate_direction)
+            candidate_direction_.push_back({ v[0],v[1],v[2] });
+
         std::cout << "ExtractCandidatePtNode:: there are " << s2 << " candidate points" << std::endl;
 
         output("edgeBallAtom").set(edgeBalls_atoms_);
@@ -394,7 +421,8 @@ namespace geoflow::nodes::mat {
         output("filter").set(filter_);
         output("candidate_points").set(candidate_points_);
         output("candidate_points_id").set(candidate_points_id_);
-
+        output("candidate_points_radius").set(candidate_radius_);
+        output("candidate_points_direction").set(candidate_direction_);
     }
 
 
@@ -724,180 +752,94 @@ namespace geoflow::nodes::mat {
         output("sheet-sheet").set(sheet_sheet_);
     }
     void ConnectCandidatePtNode::process() {
-
-        auto pointCloud_ptcollection = input("pointCloud").get<PointCollection>();
-        auto candidate_r_ptcollection = input("candidate").get<PointCollection>();
-        auto directon_vec3f = input("directon").get<vec3f>();
-        auto seg_id_vec1i = input("seg_id").get<vec1i>();
-        auto bisector_p_vec3f = input("bisector_p").get<vec3f>();
-        auto bisector_q_vec3f = input("bisector_q").get<vec3f>();
+        auto candidate_pt_ptcollection = input("candidate_points").get<PointCollection>();
+        auto point_directon_vec3f = input("point_directon").get<vec3f>();
+        auto candidate_points_id_vec1i = input("candidate_points_id").get<vec1i>();
         auto adjacency = input("adjacency").get<ridge::int_pair_vec>();
-
-        masb::PointList pointCloud;
-        pointCloud.reserve(pointCloud_ptcollection.size());
-        for (auto& p : pointCloud_ptcollection) {
-            pointCloud.push_back(masb::Point(p.data()));
+        
+        size_t size = candidate_pt_ptcollection.size();
+        masb::PointList candidate_pt;
+        candidate_pt.reserve(size);
+        for (auto& p : candidate_pt_ptcollection) {
+            candidate_pt.push_back(masb::Point(p.data()));
         }
-
-        size_t size = candidate_r_ptcollection.size();
-        masb::PointList candidate_r;
-        candidate_r.reserve(size);
-        for (auto& p : candidate_r_ptcollection) {
-            candidate_r.push_back(masb::Point(p.data()));
-        }
-        masb::VectorList directon;
-        directon.reserve(size);
-        for (auto& n : directon_vec3f) {
+        
+        masb::VectorList pt_directon;
+        pt_directon.reserve(size);
+        for (auto& n : point_directon_vec3f) {
             auto n_normlize = masb::Vector(n.data()).normalize();
-            directon.push_back(n_normlize);
+            pt_directon.push_back(n_normlize);
         }
-        masb::VectorList bisector_p;
-        bisector_p.reserve(size);
-        for (auto& bp : bisector_p_vec3f) {
-            auto bp_normlize = masb::Vector(bp.data()).normalize();
-            bisector_p.push_back(bp_normlize);
+        
+        masb::intList candidate_pt_id;
+        candidate_pt_id.reserve(size);
+        for (auto id : candidate_points_id_vec1i) {
+            candidate_pt_id.push_back(id);
         }
-        masb::VectorList bisector_q;
-        bisector_q.reserve(size);
-        for (auto& bq : bisector_q_vec3f) {
-            auto bq_normlize = masb::Vector(bq.data()).normalize();
-            bisector_q.push_back(bq_normlize);
-        }
-        masb::intList seg_id;
-        seg_id.reserve(size);
-        for (auto id : seg_id_vec1i) {
-            seg_id.push_back(id);
-        }
-        masb::intList filter, filter2;
-        ridge::segment segmentList, segmentList_nosegid;
-        masb::intList idList, idList2;
-        ridge::line symple_segmentList;
-        ridge::line line_segmentList;
-        ridge::line smoothLine;
-        masb::intList symple_idList;
 
-        //ridge::connectCandidatePt8Spline(pointCloud, candidate_r, seg_id,
-        //    filter2, line_segmentList, idList2);
+        ridge::LineSegmentList mstLineSegment;
+        masb::intList mstLineSegment_id;
+        ridge::PolyineList polylines_maxDistance, polylines_maxAccDist, polylines_maxPts;
+        masb::intList polyline_id;
 
-        std::cout << "STARTING METHOD 1 -- with SEG\n";
-        ridge::connectCandidatePt8MST(pointCloud, candidate_r, seg_id,
-            filter, segmentList, idList, symple_segmentList, symple_idList);
+        std::cout << "connect candidate points to closest neighbour "
+            <<"and symplify as one polyline" << std::endl;
+        ridge::connectCandidatePt8MST(candidate_pt, pt_directon, candidate_pt_id, adjacency,
+            mstLineSegment, mstLineSegment_id, polylines_maxDistance, polylines_maxAccDist, 
+            polylines_maxPts, polyline_id);
 
         //ridge::connectCandidatePtSmooth(symple_segmentList, smoothLine);
-
-        ridge::line smoothLines = symple_segmentList;
-        ridge::FindTopology(smoothLines, symple_idList, adjacency);
-
+        //ridge::PolyineList linesWithJunction = polylines_maxAccDist;
+        //ridge::FindTopology(linesWithJunction, polyline_id, adjacency);
         //std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
         //ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter2, segmentList_nosegid);
 
-        vec1i filter_;
-        filter_.reserve(filter.size());
-        for (auto i : filter)
-            filter_.push_back(i);
-
-        LineStringCollection segment_vis_;
-        segment_vis_.reserve(segmentList.size());
-        for (auto &s : segmentList) {
+        LineStringCollection mstLineSegment_;
+        mstLineSegment_.reserve(mstLineSegment.size());
+        for (auto &pointpair : mstLineSegment) {
             LineString tmp;
-            tmp.push_back({ s.first[0],s.first[1],s.first[2] });
-            tmp.push_back({ s.second[0],s.second[1] ,s.second[2] });
-            segment_vis_.push_back(tmp);
-        }
-
-        LineStringCollection segment_nosegid_vis_;
-        segment_nosegid_vis_.reserve(segmentList_nosegid.size());
-        for (auto &s : segmentList_nosegid) {
-            LineString tmp;
-            tmp.push_back({ s.first[0],s.first[1],s.first[2] });
-            tmp.push_back({ s.second[0],s.second[1] ,s.second[2] });
-            segment_nosegid_vis_.push_back(tmp);
-        }
-
-        vec1i idList_;
-        idList_.reserve(idList.size());
-        for (auto i : idList)
-            idList_.push_back(i);
-
-        LineStringCollection longest_seg_vis_;
-        longest_seg_vis_.reserve(symple_segmentList.size());
-        for (auto &a_line : symple_segmentList) {
-            LineString tmp;
-            for (auto &p : a_line) {
-                tmp.push_back({ p[0],p[1],p[2] });
-            }
-            longest_seg_vis_.push_back(tmp);
-        }
-        vec1i symple_idList_;
-        symple_idList_.reserve(symple_idList.size());
-        for (auto i : symple_idList)
-            symple_idList_.push_back(i);
-        /*
-        PointCollection smoothpoint_vis_;
-        LineStringCollection smoothLine_vis_;
-        smoothLine_vis_.reserve(smoothLine.size());
-        for (auto& a_smooth_line : smoothLine) {
-            LineString tmp;
-            for (auto &p : a_smooth_line) {
-                tmp.push_back({ p[0],p[1],p[2] });
-                smoothpoint_vis_.push_back({ p[0],p[1],p[2] });
-            }
-            smoothLine_vis_.push_back(tmp);
-        }
-        */
-        LineStringCollection topology_vis_;
-        topology_vis_.reserve(smoothLines.size());
-        for (auto& a_line : smoothLines) {
-            LineString tmp;
-            for (auto &p : a_line) {
-                tmp.push_back({ p[0],p[1],p[2] });
-            }
-            topology_vis_.push_back(tmp);
-        }
-
-        LineStringCollection directon_vis_;
-        LineStringCollection directon2_vis_;
-        LineStringCollection bisec_p_vis_;
-        LineStringCollection bisec_q_vis_;
-        for (int j = 0; j < size; ++j) {
-            auto p = candidate_r[j];
-            auto v = directon[j];
-            auto bp = bisector_p[j];
-            auto bq = bisector_q[j];
-            LineString tmp, tmp2, tmp_bp, tmp_bq;
+            auto p = pointpair.first;
             tmp.push_back({ p[0],p[1],p[2] });
-            tmp2.push_back({ p[0],p[1],p[2] });
-            tmp_bp.push_back({ p[0],p[1],p[2] });
-            tmp_bq.push_back({ p[0],p[1],p[2] });
-            auto end = p + v;
-            auto v2 = Vrui::Geometry::cross(bp, bq);
-            v2 = v2.normalize();
-            auto end2 = p + v2;
-            auto end_bp = p + bp;
-            auto end_bq = p + bq;
-            tmp.push_back({ end[0] ,end[1] ,end[2] });
-            tmp2.push_back({ end2[0] ,end2[1] ,end2[2] });
-            tmp_bp.push_back({ end_bp[0] ,end_bp[1] ,end_bp[2] });
-            tmp_bq.push_back({ end_bq[0] ,end_bq[1] ,end_bq[2] });
-            directon_vis_.push_back(tmp);
-            directon2_vis_.push_back(tmp2);
-            bisec_p_vis_.push_back(tmp_bp);
-            bisec_q_vis_.push_back(tmp_bq);
+            auto q = pointpair.second;
+            tmp.push_back({ q[0],q[1],q[2] });
+            mstLineSegment_.push_back(tmp);
         }
-        output("filter").set(filter_);
-        output("ridge").set(segment_vis_);
-        output("ridge_nosegid_vis_").set(segment_nosegid_vis_);
-        output("ridgeId").set(idList_);
-        output("directon_vis").set(directon_vis_);//directon_vis
-        output("directon2_vis").set(directon2_vis_);
-        output("bisector_p_vis").set(bisec_p_vis_);
-        output("bisector_q_vis").set(bisec_q_vis_);
-        output("longest_path").set(longest_seg_vis_);
-        output("longest_id").set(symple_idList_);
-        //output("smoothLine").set(smoothLine_vis_);
-        //output("smoothpoint").set(smoothpoint_vis_);
-        output("topology_vis").set(topology_vis_);
 
+        vec1i mstLineSegment_id_;
+        mstLineSegment_id_.reserve(mstLineSegment_id.size());
+        for (auto i : mstLineSegment_id)
+            mstLineSegment_id_.push_back(i);
+
+        LineStringCollection polylines_maxDistance_;
+        polylines_maxDistance_.reserve(polylines_maxDistance.size());
+        for (auto &a_line : polylines_maxDistance) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            polylines_maxDistance_.push_back(tmp);
+        }
+        LineStringCollection polylines_maxAccDist_;
+        polylines_maxAccDist_.reserve(polylines_maxAccDist.size());
+        for (auto &a_line : polylines_maxAccDist) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            polylines_maxAccDist_.push_back(tmp);
+        }
+
+        vec1i polyline_id_;
+        polyline_id_.reserve(polyline_id.size());
+        for (auto i : polyline_id)
+            polyline_id_.push_back(i);
+
+        output("mstLineSegment").set(mstLineSegment_);
+        output("mstLineSegment_id").set(mstLineSegment_id_);
+        output("polylines_maxDistance").set(polylines_maxDistance_);
+        output("polylines_maxAccDist").set(polylines_maxAccDist_);
+        //output("polylines_maxPts").set(polylines_maxPts_);
+        output("polyline_id").set(polyline_id_);
 
     }
     void PLYLoaderNode::process() {

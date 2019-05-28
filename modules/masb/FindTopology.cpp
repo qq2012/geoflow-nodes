@@ -3,7 +3,7 @@
 #include <map>
 
 
-void ridge::FindTopology(line &smoothLines, const masb::intList &symple_idList, const int_pair_vec &adjacency) {
+//void ridge::FindTopology(line &smoothLines, const masb::intList &symple_idList, const int_pair_vec &adjacency) {
     /*
     std::cout << "smoothLineid\n";
     for (auto i : symple_idList)
@@ -63,9 +63,9 @@ void ridge::FindTopology(line &smoothLines, const masb::intList &symple_idList, 
     */
 
     ////////////////////////////////////////
-    float connect_thresh = 80;
+    //float connect_thresh = 80;
     ////////////////////////////////////////
-    
+    /*
     for (int i = 0; i < smoothLines.size();++i) {
         auto pt1 = smoothLines[i][0];
         auto pt2 = smoothLines[i].back();
@@ -99,3 +99,4 @@ void ridge::FindTopology(line &smoothLines, const masb::intList &symple_idList, 
     }
     
 }
+*/

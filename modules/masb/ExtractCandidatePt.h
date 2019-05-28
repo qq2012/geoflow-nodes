@@ -31,6 +31,8 @@ namespace masb {
         intList filter;
         PointList candidate_pt;
         intList candidate_id;
+        floatList candidate_radius;
+        VectorList candidate_direction;
 
         void processing_old(ExtractCandidatePt_pram & power, mat_data &madata, ma_Geometry &maGeometry, Sheet_idx_List &sheets,
             PointCloud &PointCloud);
