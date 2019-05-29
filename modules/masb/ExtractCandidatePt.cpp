@@ -155,9 +155,10 @@ void ExtractCandidatePt::EdgeBallDetection(ExtractCandidatePt_pram & power, MAT 
             this->edgeBalls.seperationAng.push_back(SepAng);
             this->edgeBalls.ma_direction.push_back(mat.ma_direction[idx]);
             this->edgeBall_id.push_back(cur_id);
-            ///////////////////////////////////////////////////////////////
-            //                     EdgeBall2CandidatePt
-            ///////////////////////////////////////////////////////////////
+
+            //////////////////////////////////////////////////////////////////////////////////////
+            //                     EdgeBall2 imtermediate CandidatePt
+            //////////////////////////////////////////////////////////////////////////////////////
             this->can_pt_r.push_back(pt + bisec * r);
             this->can_pt_cos.push_back(pt + bisec * (r / cos(SepAng / 2)));
 
@@ -177,30 +178,51 @@ void ExtractCandidatePt::EdgeBallDetection(ExtractCandidatePt_pram & power, MAT 
 }
 
 
-void ExtractCandidatePt::filterCandidatePt(ExtractCandidatePt_pram & power, PointList &pointcloud) {
+void ExtractCandidatePt::filterCandidatePt(ExtractCandidatePt_pram & power, 
+    PointList &pointcloud, PointList &unShrinkingPt) {
     kdtree2::KDTree* pc_kdtree;
     pc_kdtree = new kdtree2::KDTree(pointcloud, true);
     pc_kdtree->sort_results = true;
-    std::vector<float> dis_list; dis_list.reserve(edgeBalls.matSize);
+    std::vector<float> BallTerrainDis_list; 
+    BallTerrainDis_list.reserve(edgeBalls.matSize);
+
+    kdtree2::KDTree* unShrinkingPt_kdtree;
+    unShrinkingPt_kdtree = new kdtree2::KDTree(unShrinkingPt, true);
+    unShrinkingPt_kdtree->sort_results = true;
+    std::vector<float> cpt2unShrDis_list;//distance from candidate pt (x,y,z_interpolation) to unshrinking point 
+    cpt2unShrDis_list.reserve(edgeBalls.matSize);
+
     for (int i = 0; i < edgeBalls.matSize; ++i) {
         kdtree2::KDTreeResultVector neighbours;
-        pc_kdtree->n_nearest(this->can_pt_r_bisector_avg[i], 1, neighbours);
-        dis_list.push_back(neighbours[0].dis);
-        if (neighbours[0].dis > power.filterDistance) {
-            filter.push_back(0);
-        }
-        else {
+        //pc_kdtree->n_nearest(this->can_pt_r_bisector_avg[i], 1, neighbours);
+        pc_kdtree->n_nearest(this->edgeBalls.atom[i], 1, neighbours);
+        BallTerrainDis_list.push_back(neighbours[0].dis);
+
+        ///////////////////////////////////////////////////////////////
+        //                     NN spatialInterpolation
+        ///////////////////////////////////////////////////////////////
+        auto xyz = this->can_pt_r_bisector_avg[i];
+        auto z_NN = pointcloud[neighbours[0].idx][2];
+        Point candidate(xyz[0], xyz[1], z_NN);
+
+        kdtree2::KDTreeResultVector neighbours2;
+        unShrinkingPt_kdtree->n_nearest(candidate, 1, neighbours2);
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        //     distance2ground, filterEdgeBall8radius and distance2unShrinkingPt
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        if (neighbours[0].dis < power.filterDistance 
+            && edgeBalls.radius[i] < power.MaxEdgeBallRadius
+            && edgeBalls.radius[i] > power.MinEdgeBallRadius
+            && neighbours2[0].dis > power.unshrinkingDist) {
             filter.push_back(1);
             //this->remainingPt.push_back(this->can_pt_r_bisector_avg[i]);
             this->candidate_id.push_back(edgeBall_id[i]);
-            ///////////////////////////////////////////////////////////////
-            //                     NN spatialInterpolation
-            ///////////////////////////////////////////////////////////////
-            auto xyz = this->can_pt_r_bisector_avg[i];
-            auto z_NN = pointcloud[neighbours[0].idx][2];
-            this->candidate_pt.push_back({ xyz[0],xyz[1], z_NN });
+            this->candidate_pt.push_back(candidate);
             this->candidate_radius.push_back(this->edgeBalls.radius[i]);
             this->candidate_direction.push_back(this->edgeBalls.ma_direction[i]);
+        }
+        else {
+            filter.push_back(0);
         }
     }
 }
@@ -209,7 +231,8 @@ void ExtractCandidatePt::spatialInterpolation(PointList &pointcloud) {
 
 }
 */
-void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, MAT &mat, PointList &pointcloud, intList &seg_id) {
+void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, MAT &mat, PointList &pointcloud, 
+    intList &seg_id, PointList &unShrinkingPt) {
     std::cout << "cos(deviationAng_thres) is " << power.deviationAng_thres << std::endl;
     //auto it = max_element(std::begin(seg_id), std::end(seg_id));
     auto max_id = *max_element(seg_id.begin(), seg_id.end());
@@ -235,6 +258,6 @@ void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, MAT &mat, P
         EdgeBallDetection(power, cur_sheet_mat, cur_id);
     }
     this->edgeBalls.matSize = edgeBalls.atom.size();
-    filterCandidatePt(power, pointcloud);
+    filterCandidatePt(power, pointcloud, unShrinkingPt);
     //spatialInterpolation(pointcloud);
 }

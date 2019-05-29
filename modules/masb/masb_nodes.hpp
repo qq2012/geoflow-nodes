@@ -208,12 +208,16 @@ namespace geoflow::nodes::mat {
         void init() {
             add_param("SearchRadius", (float) 45.00);
             add_param("deviationAng_thres", (float) 15.00);
+            add_param("MaxEdgeBallRadius", (float) 20.00);
+            add_param("MinEdgeBallRadius", (float) 1.00);
             add_param("filterDistance", (float) 5.00);
+            add_param("unshrinkingDist",(float) 3.50);
             add_param("bis_avg_knn", (int)20);
 
             add_input("mat", typeid(masb::MAT));
             add_input("seg_id", typeid(vec1i));
             add_input("pointcloud", typeid(PointCollection));
+            add_input("unShrinking point cloud", typeid(PointCollection));
 
             //add_output("edgeBall", typeid(masb::MAT));
             add_output("edgeBallAtom", typeid(PointCollection));
@@ -237,8 +241,11 @@ namespace geoflow::nodes::mat {
         void gui() {
             ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 20, 100);
             ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 45);
+            ImGui::SliderFloat("MaxEdgeBallRadius(curvature=1/r)", &param<float>("MaxEdgeBallRadius"), 0, 100);
+            ImGui::SliderFloat("MinEdgeBallRadius(curvature=1/r)",&param<float>("MinEdgeBallRadius"), 0, 10);
+            ImGui::SliderFloat("filterEdgeAtom2pointCloudDistance", &param<float>("filterDistance"), 0.1, 400);
+            ImGui::SliderFloat("filterCandidatpt2UnshrinkingPtDistance",&param<float>("unshrinkingDist"), 0, 100);
             ImGui::SliderInt("bis_avg_knn", &param<int>("bis_avg_knn"), 5, 50);
-            ImGui::SliderFloat("filterDistance", &param<float>("filterDistance"), 0.1, 10);
         }
         void process();
     };
@@ -355,7 +362,7 @@ namespace geoflow::nodes::mat {
             add_output("mstLineSegment_id", typeid(vec1i));
             add_output("polylines_maxDistance", typeid(LineStringCollection));
             add_output("polylines_maxAccDist", typeid(LineStringCollection));
-            //output("polylines_maxPts", typeid(LineStringCollection));
+            add_output("polylines_maxPtNum", typeid(LineStringCollection));
             add_output("polyline_id", typeid(vec1i));
 
             add_output("linesWithJunction_maxAccDist", typeid(LineStringCollection));

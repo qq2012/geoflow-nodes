@@ -206,6 +206,7 @@ namespace geoflow::nodes::mat {
     void MedialSegmentNode::process() {
         auto mat = input("mat").get<masb::MAT>();
         
+        std::cout << "\nMedialSegmentNode::process()" << std::endl;
         masb::MaSeg_power params;
         params.mincount = param<int>("mincount");
         params.maxcount = param<int>("maxcount");
@@ -267,6 +268,8 @@ namespace geoflow::nodes::mat {
     void adjacencyNode::process(){
         auto mat = input("mat").get<masb::MAT>();
         auto sheets = input("sheets").get<masb::Sheet_idx_List>();
+
+        std::cout << "\nadjacencyNode::process()" << std::endl;
         ridge::adjacency_parameters  params;
         params.searchRadius = param<float>("searchRadius");
         params.adjacency_thresh = param<int>("adjacency_thresh");
@@ -336,19 +339,31 @@ namespace geoflow::nodes::mat {
         auto mat = input("mat").get<masb::MAT>();
         auto seg_id_vec1i = input("seg_id").get<vec1i>();
         auto pointcloud_PointCollection = input("pointcloud").get<PointCollection>();
+        auto unShrinkingPt_PointCollection = input("unShrinking point cloud").get<PointCollection>();
         
+        std::cout << "\nExtractCandidatePtNode::process()" << std::endl;
+
         masb::ExtractCandidatePt_pram  params;
         params.SearchRadius = param<float>("SearchRadius");
         params.deviationAng_thres = cos((param<float>("deviationAng_thres") / 180.0)*PI);
         std::cout << "deviationAng_thres is " << param<float>("deviationAng_thres") << " degree"
             << "cos (deviationAng_thres) is" << params.deviationAng_thres << std::endl;
-        params.bis_avg_knn = param<int>("bis_avg_knn");
+
+        params.MaxEdgeBallRadius = param<float>("MaxEdgeBallRadius");
+        params.MinEdgeBallRadius = param<float>("MinEdgeBallRadius");
         params.filterDistance = param<float>("filterDistance");
+        params.unshrinkingDist = param<float>("unshrinkingDist");
+        params.bis_avg_knn = param<int>("bis_avg_knn");
 
         masb::PointList pointcloud;
         pointcloud.reserve(pointcloud_PointCollection.size());
         for (auto &p : pointcloud_PointCollection)
             pointcloud.push_back(masb::Point(p.data()));
+
+        masb::PointList unShrinkingPt;
+        unShrinkingPt.reserve(unShrinkingPt_PointCollection.size());
+        for (auto &p : unShrinkingPt_PointCollection)
+            unShrinkingPt.push_back(masb::Point(p.data()));
 
         masb::intList seg_id;
         seg_id.reserve(seg_id_vec1i.size());
@@ -356,7 +371,7 @@ namespace geoflow::nodes::mat {
             seg_id.push_back(id);
 
         masb::ExtractCandidatePt extractor;
-        extractor.processing(params,mat, pointcloud, seg_id);
+        extractor.processing(params,mat, pointcloud, seg_id, unShrinkingPt);
 
         PointCollection edgeBalls_atoms_; 
         vec1i edgeBall_id_;
@@ -756,6 +771,8 @@ namespace geoflow::nodes::mat {
         auto candidate_points_id_vec1i = input("candidate_points_id").get<vec1i>();
         auto adjacency = input("adjacency").get<ridge::int_pair_vec>();
         
+        std::cout << "\nConnectCandidatePtNode::process()" << std::endl;
+
         size_t size = candidate_pt_ptcollection.size();
         masb::PointList candidate_pt;
         candidate_pt.reserve(size);
@@ -778,14 +795,14 @@ namespace geoflow::nodes::mat {
 
         ridge::LineSegmentList mstLineSegment;
         masb::intList mstLineSegment_id;
-        ridge::PolyineList polylines_maxDistance, polylines_maxAccDist, polylines_maxPts;
+        ridge::PolyineList polylines_maxDistance, polylines_maxAccDist, polylines_maxPtNum;
         masb::intList polyline_id;
 
         std::cout << "connect candidate points to closest neighbour "
             <<"and symplify as one polyline" << std::endl;
         ridge::connectCandidatePt8MST(candidate_pt, pt_directon, candidate_pt_id,
             mstLineSegment, mstLineSegment_id, polylines_maxDistance, polylines_maxAccDist, 
-            polylines_maxPts, polyline_id);
+            polylines_maxPtNum, polyline_id);
  
         ridge::PolyineList linesWithJunction1 = polylines_maxAccDist;
         ridge::FindTopology(linesWithJunction1, polyline_id, adjacency);
@@ -832,6 +849,16 @@ namespace geoflow::nodes::mat {
             polylines_maxAccDist_.push_back(tmp);
         }
 
+        LineStringCollection polylines_maxPtNum_;
+        polylines_maxPtNum_.reserve(polylines_maxPtNum.size());
+        for (auto &a_line : polylines_maxPtNum) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            polylines_maxPtNum_.push_back(tmp);
+        }
+
         vec1i polyline_id_;
         polyline_id_.reserve(polyline_id.size());
         for (auto i : polyline_id)
@@ -862,7 +889,7 @@ namespace geoflow::nodes::mat {
         output("mstLineSegment_id").set(mstLineSegment_id_);
         output("polylines_maxDistance").set(polylines_maxDistance_);
         output("polylines_maxAccDist").set(polylines_maxAccDist_);
-        //output("polylines_maxPts").set(polylines_maxPts_);
+        output("polylines_maxPtNum").set(polylines_maxPtNum_);
         output("polyline_id").set(polyline_id_);
         output("linesWithJunction_maxAccDist").set(linesWithJunction_maxAccDist_);
         output("linesWithJunction_maxDistance").set(linesWithJunction_maxDistance_);

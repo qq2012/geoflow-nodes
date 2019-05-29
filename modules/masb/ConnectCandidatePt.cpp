@@ -21,20 +21,22 @@ typedef boost::graph_traits<Graph>::vertex_iterator     VertexIterator;
 
 void ridge::connectCandidatePt8MST(masb::PointList &pts, masb::VectorList &pt_directon, masb::intList &pt_id,
     ridge::LineSegmentList &mstLineSegment, masb::intList &mstLineSegment_id, 
-    ridge::PolyineList &polylines_maxDistance, ridge::PolyineList &polylines_maxAccDist,ridge::PolyineList &polylines_maxPts,
+    ridge::PolyineList &polylines_maxDistance, ridge::PolyineList &polylines_maxAccDist,ridge::PolyineList &polylines_maxPtNum,
     masb::intList &polyline_id){
 
     std::map<int, int> seg_frequency;
     for (auto i : pt_id) {
         ++seg_frequency[i];
     }
+    /*
     for (const auto& e : seg_frequency)
         std::cout << "Element " << e.first 
          << " encountered " << e.second << " times\n";
+    */
     for (const auto& e : seg_frequency) {
         auto cur_sheet = e.first;
         auto cur_size = e.second;
-        if (cur_sheet == 0)
+        if (cur_sheet == 0 || cur_size < 3)
             continue;
         masb::PointList cur_candidate;
         cur_candidate.reserve(cur_size);
@@ -127,9 +129,9 @@ void ridge::connectCandidatePt8MST(masb::PointList &pts, masb::VectorList &pt_di
         std::cout << "start symplify MST as one polyline by maxDistance" << std::endl;
         Vertex maxDistanceStart = vertex(maxDistance_idx1, g_short);
         Vertex maxDistanceEnd = vertex(maxDistance_idx2, g_short);
-        std::cout << "longest path -- " << maxDistance
-            << " starts at point -- " << indexmap[maxDistanceStart]<<" ("<< maxDistance_idx1<<")"
-            << " ends at point -- " << indexmap[maxDistanceEnd] << " (" << maxDistance_idx2 << ")\n";
+        //std::cout << "maxDistance -- " << maxDistance
+        //    << " starts at point -- " << indexmap[maxDistanceStart]<<" ("<< maxDistance_idx1<<")"
+        //    << " ends at point -- " << indexmap[maxDistanceEnd] << " (" << maxDistance_idx2 << ")\n";
 
         dijkstra_shortest_paths(g_short, maxDistanceStart, predecessor_map(&p[0]).distance_map(&d[0]));
 
@@ -156,40 +158,51 @@ void ridge::connectCandidatePt8MST(masb::PointList &pts, masb::VectorList &pt_di
 
         std::cout << "start symplify MST as one polyline by maxAccDist and maxPtNum" << std::endl;
         float maxAccDist = 0;
-        int maxPtNum;
         Vertex maxAccDistStart, maxAccDistEnd;
+        int maxPtNum = 0;
         Vertex maxPtNumStart, maxPtNumEnd;
+
         for (std::size_t j = 0; j < cur_size; ++j) {
             Vertex s = vertex(j, g_short);
-            //dijkstra_shortest_paths(g_short, s, &p[0], &d[0], weightmap_s, indexmap,
-            //    std::less<int>(), closed_plus<int>(),
-            //    (std::numeric_limits<int>::max)(), 0,
-            //    default_dijkstra_visitor());
             dijkstra_shortest_paths(g_short, s, predecessor_map(&p[0]).distance_map(&d[0]));
-            //std::cout << "distances and parents:" << std::endl;
-            //graph_traits < Graph >::vertex_iterator vi, vend;
-            //for (tie(vi, vend) = vertices(g_short); vi != vend; ++vi) {
-            //    std::cout << "distance(" << indexmap[*vi] << ") = " << d[*vi] << ", ";
-            //    std::cout << "parent(" << indexmap[*vi] << ") = " << indexmap[p[*vi]] << std::
-            //        endl;
-            //}
-            //std::cout << std::endl;
-
+            /*
+            std::cout << "distances and parents:" << std::endl;
+            graph_traits < Graph >::vertex_iterator vi, vend;
+            for (tie(vi, vend) = vertices(g_short); vi != vend; ++vi) {
+                std::cout << "distance(" << indexmap[*vi] << ") = " << d[*vi] << ", ";
+                std::cout << "parent(" << indexmap[*vi] << ") = " << indexmap[p[*vi]] << std::
+                    endl;
+            }
+            std::cout << std::endl;
+            */
+            
             graph_traits < Graph >::vertex_iterator vii, vendd;
             for (tie(vii, vendd) = vertices(g_short); vii != vendd; ++vii) {
+                //maxAccDist
                 if (maxAccDist < d[*vii]) {
                     maxAccDist = d[*vii];
                     maxAccDistEnd = *vii;
                     maxAccDistStart = s;
                 }
+                //maxPtNum
+                int cur_ptNumCount = 0;
+                graph_traits< Graph >::vertex_descriptor current_tmp = *vii;
+                while (current_tmp != s) {
+                    cur_ptNumCount++;
+                    current_tmp = p[current_tmp];
+                }
+                if (cur_ptNumCount > maxPtNum) {
+                    maxPtNum = cur_ptNumCount;
+                    maxPtNumStart = *vii;
+                    maxPtNumEnd = s;
+                }
             }
+
         }
         //because d,p are modified, need to calculate shortest path again
         dijkstra_shortest_paths(g_short, maxAccDistStart, predecessor_map(&p[0]).distance_map(&d[0]));
-
         std::vector< graph_traits< Graph >::vertex_descriptor > path2;
         graph_traits< Graph >::vertex_descriptor current2 = maxAccDistEnd;
-
         while (current2 != maxAccDistStart) {
             path2.push_back(current2);
             current2 = p[current2];
@@ -207,8 +220,59 @@ void ridge::connectCandidatePt8MST(masb::PointList &pts, masb::VectorList &pt_di
         //std::cout << std::endl;
         polylines_maxAccDist.push_back(a_line2);
 
+        dijkstra_shortest_paths(g_short, maxPtNumStart, predecessor_map(&p[0]).distance_map(&d[0]));
+        std::vector< graph_traits< Graph >::vertex_descriptor > path3;
+        graph_traits< Graph >::vertex_descriptor current3 = maxPtNumEnd;
+        while (current3 != maxPtNumStart) {
+            path3.push_back(current3);
+            current3 = p[current3];
+        }
+        path3.push_back(maxPtNumStart);
+
+        masb::PointList a_line3;
+        std::vector< graph_traits< Graph >::vertex_descriptor >::iterator it3;
+        for (it3 = path3.begin(); it3 != path3.end(); ++it3) {
+            //std::cout << indexmap[*it] << " ";
+            auto pt_idx = indexmap[*it3];
+            masb::Point pt = cur_candidate[pt_idx];
+            //std::cout << pt[0] << " " << pt[1] << " " << pt[2] << std::endl;
+            a_line3.push_back(pt);
+        }
+        //std::cout << std::endl;
+        polylines_maxPtNum.push_back(a_line3);
+
+        /*
+        std::vector<Vertex> freeVertex;
+        for (auto vd : boost::make_iterator_range(vertices(g_short))) {
+            //std::cout << "Vertex descriptor #" << vd 
+            //<< " degree:" << degree(vd, g_short);
+            if (degree(vd, g_short) == 1) {
+                freeVertex.push_back(vd);
+            }
+        }
+        std::cout << "there are " << freeVertex.size() << "free Vertex in sheet " << cur_sheet << "'s MST" << std::endl;
+
+        for (int i = 0; i < freeVertex.size(); ++i) {
+            dijkstra_shortest_paths(g_short, freeVertex[i], predecessor_map(&p[0]).distance_map(&d[0]));
+            for (int j = 0; j < freeVertex.size(); ++j) {
+                int cur_count = 0;
+                graph_traits< Graph >::vertex_descriptor current_tmp = freeVertex[j];
+                while (current_tmp != freeVertex[i]) {
+                    cur_count++;
+                    current_tmp = p[current_tmp];
+                }
+                if (cur_count > maxPtNum) {
+                    maxPtNumStart = freeVertex[i];
+                    maxPtNumEnd = freeVertex[j];
+                }
+            }
+        }
+        */
     }
 }
+
+
+
 /*
 void ridge::connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList & candidate, masb::intList &filter, segment &segmentList) {
     /////////////////////////////////////////

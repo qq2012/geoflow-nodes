@@ -6,7 +6,8 @@
 void ridge::FindTopology(PolyineList &polylines, const masb::intList &polylinesID, 
     const int_pair_vec &adjacency){
     
-    std::cout << "smoothLineid\n";
+    std::cout << "ridge::FindTopology()\n"
+        <<"polylinesID\n";
     for (auto i : polylinesID)
         std::cout << i << " ";
     std::cout << "\n";

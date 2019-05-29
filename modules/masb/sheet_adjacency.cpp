@@ -62,9 +62,9 @@ void ridge::adjacencyProcessing(ridge::adjacency_parameters& power, masb::MAT &m
             }
             if (ptIdxSet_i.size() > power.adjacency_thresh && ptIdxSet_j.size() > power.adjacency_thresh) {
                 adjacency.push_back(std::make_pair(sheet_i_id, sheet_j_id));
-                std::cout << "sheet " << sheet_i_id << " and " << sheet_j_id << " are adjacent\n";
-                std::cout << "sheet " << sheet_i_id << " has " << ptIdxSet_i.size() << " neighbours in " << sheet_j_id << std::endl;
-                std::cout << "sheet " << sheet_j_id << " has " << ptIdxSet_j.size() << " neighbours in " << sheet_i_id << std::endl;
+                std::cout << "sheet " << sheet_i_id << " and " << sheet_j_id << " are adjacent"
+                    << "sheet " << sheet_i_id << " has " << ptIdxSet_i.size() << " neighbours in " << sheet_j_id
+                    << "sheet " << sheet_j_id << " has " << ptIdxSet_j.size() << " neighbours in " << sheet_i_id << std::endl;
 
             }
         }
