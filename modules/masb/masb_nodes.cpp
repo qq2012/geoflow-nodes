@@ -440,7 +440,60 @@ namespace geoflow::nodes::mat {
         output("candidate_points_radius").set(candidate_radius_);
         output("candidate_points_direction").set(candidate_direction_);
     }
+    void ExtractCandidatePtAllAtomsNode::process() {
+        auto mat = input("mat").get<masb::MAT>();
+        auto seg_id_vec1i = input("seg_id").get<vec1i>();
+        auto pointcloud_PointCollection = input("pointcloud").get<PointCollection>();
+        auto unShrinkingPt_PointCollection = input("unShrinking point cloud").get<PointCollection>();
 
+        std::cout << "\nExtractCandidatePtNode::process()" << std::endl;
+
+        masb::ExtractCandidatePt_pram  params;
+        params.SearchRadius = 0;
+        params.deviationAng_thres = 0;
+        params.MaxEdgeBallRadius = 0;
+        params.MinEdgeBallRadius = 0;
+        params.filterDistance = param<float>("filterDistance");
+        params.unshrinkingDist = param<float>("unshrinkingDist");
+        params.bis_avg_knn = param<int>("bis_avg_knn");
+
+        masb::PointList pointcloud;
+        pointcloud.reserve(pointcloud_PointCollection.size());
+        for (auto &p : pointcloud_PointCollection)
+            pointcloud.push_back(masb::Point(p.data()));
+
+        masb::PointList unShrinkingPt;
+        unShrinkingPt.reserve(unShrinkingPt_PointCollection.size());
+        for (auto &p : unShrinkingPt_PointCollection)
+            unShrinkingPt.push_back(masb::Point(p.data()));
+
+        masb::intList seg_id;
+        seg_id.reserve(seg_id_vec1i.size());
+        for (auto id : seg_id_vec1i)
+            seg_id.push_back(id);
+
+        masb::PointList candidatePt;
+        masb::intList candidatePt_id;
+        masb::allAtoms2Candidates(params, mat, pointcloud, seg_id, unShrinkingPt, 
+            candidatePt, candidatePt_id);
+
+        PointCollection candidatePt_;
+        vec1i candidatePt_id_;
+
+        int s = candidatePt.size();
+        candidatePt_.reserve(s);
+        for (auto &p : candidatePt)
+            candidatePt_.push_back({ p[0],p[1],p[2] });
+
+        candidatePt_id_.reserve(s);
+        for (auto id : candidatePt_id)
+            candidatePt_id_.push_back(id);
+
+        std::cout << "ExtractCandidatePtAllAtomsNode:: there are " << s << " candidate points" << std::endl;
+
+        output("candidate_points").set(candidatePt_);
+        output("candidate_points_id").set(candidatePt_id_);
+    }
     void ReadCandidatePtNode::process() {
         PointCollection candidate_r_;
         vec3f direction_;

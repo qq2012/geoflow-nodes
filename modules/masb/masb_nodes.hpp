@@ -251,6 +251,29 @@ namespace geoflow::nodes::mat {
         void process();
     };
 
+    class ExtractCandidatePtAllAtomsNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_param("filterDistance", (float) 5.00);
+            add_param("unshrinkingDist", (float) 0);
+            add_param("bis_avg_knn", (int)40);
+
+            add_input("mat", typeid(masb::MAT));
+            add_input("seg_id", typeid(vec1i));
+            add_input("pointcloud", typeid(PointCollection));
+            add_input("unShrinking point cloud", typeid(PointCollection));
+
+            add_output("candidate_points", typeid(PointCollection));
+            add_output("candidate_points_id", typeid(vec1i));
+        }
+        void gui() {ImGui::SliderFloat("filterEdgeAtom2pointCloudDistance", &param<float>("filterDistance"), 0.1, 1000);
+            ImGui::SliderFloat("filterCandidatpt2UnshrinkingPtDistance", &param<float>("unshrinkingDist"), 0, 100);
+            ImGui::SliderInt("bis_avg_knn", &param<int>("bis_avg_knn"), 5, 50);
+        }
+        void process();
+    };
+
     class ReadCandidatePtNode :public Node {
     public:
         using Node::Node;

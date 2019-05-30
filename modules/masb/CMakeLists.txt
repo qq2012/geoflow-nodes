@@ -6,6 +6,7 @@ add_library(masb_nodes STATIC
   Ma_utility.cpp
   Ma_Segmentation_processing.cpp
   ExtractCandidatePt.cpp
+  ExtractCandidatePt_AllAtoms.cpp
   MaPt_in_oneTrace.cpp
   ConnectCandidatePt.cpp
   ConnectCandidatePt_smooth.cpp

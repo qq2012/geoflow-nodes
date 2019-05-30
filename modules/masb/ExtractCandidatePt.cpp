@@ -235,6 +235,7 @@ void ExtractCandidatePt::processing(ExtractCandidatePt_pram & power, MAT &mat, P
     intList &seg_id, PointList &unShrinkingPt) {
     std::cout << "cos(deviationAng_thres) is " << power.deviationAng_thres << std::endl;
     //auto it = max_element(std::begin(seg_id), std::end(seg_id));
+
     auto max_id = *max_element(seg_id.begin(), seg_id.end());
     for (int cur_id = 1; cur_id <= max_id; ++cur_id) {
         MAT cur_sheet_mat;

@@ -21,6 +21,9 @@ namespace masb {
         //    this->deviationAng_thres = cos((this->deviationAng_thres / 180.0)*PI);
         //}
     };
+    void allAtoms2Candidates(ExtractCandidatePt_pram & power, MAT &mat, PointList &pointcloud,
+        intList &seg_id, PointList &unShrinkingPt, PointList &candidatePt, intList &candidatePt_id);
+
     class ExtractCandidatePt {
     public:
         ExtractCandidatePt_pram power;
@@ -41,6 +44,7 @@ namespace masb {
             PointCloud &PointCloud);
         void processing(ExtractCandidatePt_pram & power, MAT &mat, PointList &pointcloud, 
             intList &seg_id, PointList &unShrinkingPt);
+        
     private:
         //PointList remainingPt;
         inline bool validateCandidate(float deviationAng_thres, Vector &vec1, Vector &vec2);
@@ -48,6 +52,7 @@ namespace masb {
         //void EdgeBall2CandidatePt();
         void filterCandidatePt(ExtractCandidatePt_pram & power, PointList &pointcloud, PointList &unShrinkingPt);
         //void spatialInterpolation(PointList &pointcloud);
+        
     };
 }
 #endif
