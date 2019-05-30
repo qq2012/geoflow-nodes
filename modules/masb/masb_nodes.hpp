@@ -10,6 +10,7 @@
 #include "ExtractCandidatePt.h"
 #include "MaPt_in_oneTrace.h"
 #include "ConnectCandidatePt.h"
+#include "polylineSmooth.h"
 #include "breaklineValidate.h"
 
 
@@ -176,7 +177,7 @@ namespace geoflow::nodes::mat {
             add_input("mat", typeid(masb::MAT));
             add_input("sheets", typeid(masb::Sheet_idx_List));
             add_output("sheet-sheet adjacency", typeid(ridge::int_pair_vec));
-            add_output("junction points", typeid(vec3f));
+            add_output("junction points", typeid(PointCollection));
         }
         void gui() {
             ImGui::SliderFloat("searchRadius", &param<float>("searchRadius"), 0, 200);
@@ -243,7 +244,7 @@ namespace geoflow::nodes::mat {
             ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 45);
             ImGui::SliderFloat("MaxEdgeBallRadius(curvature=1/r)", &param<float>("MaxEdgeBallRadius"), 0, 100);
             ImGui::SliderFloat("MinEdgeBallRadius(curvature=1/r)",&param<float>("MinEdgeBallRadius"), 0, 10);
-            ImGui::SliderFloat("filterEdgeAtom2pointCloudDistance", &param<float>("filterDistance"), 0.1, 400);
+            ImGui::SliderFloat("filterEdgeAtom2pointCloudDistance", &param<float>("filterDistance"), 0.1, 1000);
             ImGui::SliderFloat("filterCandidatpt2UnshrinkingPtDistance",&param<float>("unshrinkingDist"), 0, 100);
             ImGui::SliderInt("bis_avg_knn", &param<int>("bis_avg_knn"), 5, 50);
         }
@@ -370,6 +371,22 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+
+    class PolylineSmothNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_param("sharpAng", (float)130);
+            add_input("polylines", typeid(LineStringCollection));
+            add_output("smoothed polyline", typeid(LineStringCollection));
+            //add_output("test polyline", typeid(LineStringCollection));
+        }
+        void gui() {
+            ImGui::SliderFloat("sharpAng(degree)", &param<float>("sharpAng"), 90, 180);
+        }
+        void process();
+    };
+
     class PLYLoaderNode :public Node {
     public:
         using Node::Node;

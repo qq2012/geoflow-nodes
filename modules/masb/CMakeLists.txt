@@ -14,6 +14,7 @@ add_library(masb_nodes STATIC
   FindTopology.cpp
   breaklineValidate.cpp
   sheet_adjacency.cpp
+  polylineSmooth.cpp
 )
 
 include_directories(${EIGEN_INCLUDE_DIR})

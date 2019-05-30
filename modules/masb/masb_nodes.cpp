@@ -895,6 +895,60 @@ namespace geoflow::nodes::mat {
         output("linesWithJunction_maxDistance").set(linesWithJunction_maxDistance_);
     }
 
+    void PolylineSmothNode::process() {
+        auto polyline_linestringcollection = input("polylines").get<LineStringCollection>();
+
+        float sharpAng_degree = param<float>("sharpAng");
+        float sharpAng_rad = sharpAng_degree / 180.0*PI;
+        
+        ridge::PolyineList polylines;
+        polylines.reserve(polyline_linestringcollection.size());
+        for (auto &polyline_linestring : polyline_linestringcollection) {
+            masb::PointList a_polyline;
+            for (auto &pt : polyline_linestring) {
+                a_polyline.push_back(masb::Point(pt.data()));
+            }
+            polylines.push_back(a_polyline);
+        }
+        /*
+        //test
+        ridge::PolyineList polylines;
+        masb::PointList a_polyline;
+        a_polyline.push_back(masb::Point({ 1,2,0 }));
+        a_polyline.push_back(masb::Point({ 3,2,0 }));
+        a_polyline.push_back(masb::Point({ 5,2,0 }));
+        a_polyline.push_back(masb::Point({ 5,0,0 }));
+        a_polyline.push_back(masb::Point({ 7,0,0 }));
+        a_polyline.push_back(masb::Point({ 9,0,0 }));
+        a_polyline.push_back(masb::Point({ 11,0,0 }));
+        polylines.push_back(a_polyline);
+
+        LineStringCollection testPolyline_coll;
+        LineString testpolyline;
+        testpolyline.push_back({ 1,2,0 });
+        testpolyline.push_back({ 3,2,0 });
+        testpolyline.push_back({ 5,2,0 });
+        testpolyline.push_back({ 5,0,0 });
+        testpolyline.push_back({ 7,0,0 });
+        testpolyline.push_back({ 9,0,0 });
+        testpolyline.push_back({ 11,0,0 });
+        testPolyline_coll.push_back(testpolyline);
+        */
+        auto smoothedPolylines = ridge::polylineSmooth(polylines, sharpAng_rad);
+        
+        LineStringCollection smoothedPolylines_;
+        smoothedPolylines_.reserve(smoothedPolylines.size());
+        for (auto &a_line : smoothedPolylines) {
+            LineString tmp;
+            for (auto&p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            smoothedPolylines_.push_back(tmp);
+        }
+        output("smoothed polyline").set(smoothedPolylines_);
+        //output("test polyline").set(testPolyline_coll);
+    }
+
 
     void PLYLoaderNode::process() {
         int k = param<int>("thinning_factor");
