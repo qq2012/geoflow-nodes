@@ -453,7 +453,7 @@ namespace geoflow::nodes::mat {
         params.deviationAng_thres = 0;
         params.MaxEdgeBallRadius = 0;
         params.MinEdgeBallRadius = 0;
-        params.filterDistance = param<float>("filterDistance");
+        params.filterDistance = 0;
         params.unshrinkingDist = param<float>("unshrinkingDist");
         params.bis_avg_knn = param<int>("bis_avg_knn");
 
@@ -1141,5 +1141,37 @@ namespace geoflow::nodes::mat {
             TestLine.push_back(masb::Point(p.data()));
         }
         ridge::breaklineValidateProcess(TestLine, ReferenceLine);
+    }
+    void PolyLines3D2objNode::process() {
+        auto polylines_LineStringCollection = input("polylines").get<LineStringCollection>();
+        auto filepath = param<std::string>("filepath");
+        
+        std::ofstream outfile;
+        outfile.open(filepath);
+        if (!outfile) {
+            std::cout << "PolyLines3D2objNode:: filepath error" << std::endl;
+            return;
+        }
+
+        for (auto &linestring : polylines_LineStringCollection) {
+            for (auto&p : linestring) {
+                outfile << "v " << p[0]
+                    << " " << p[1]
+                    << " " << p[2]
+                    << "\n";
+            }
+        }
+        int count = 1;
+        for (auto& linestring : polylines_LineStringCollection) {
+            outfile << "l ";
+            int cur_size = linestring.size();
+            for (int i = count; i < count + cur_size; ++i) {
+                outfile << i << " ";
+            }
+            outfile << "\n";
+            count += cur_size;
+        }
+        outfile.close();
+        //wkt LINESTRING (1 2 0, 4 3 0, 8 9 0)
     }
 }

@@ -186,6 +186,13 @@ void ExtractCandidatePt::filterCandidatePt(ExtractCandidatePt_pram & power,
     std::vector<float> BallTerrainDis_list; 
     BallTerrainDis_list.reserve(edgeBalls.matSize);
 
+    PointList pointcloud2d;
+    for (auto &pt : pointcloud)
+        pointcloud2d.push_back(Point(pt[0], pt[1], 0));
+    kdtree2::KDTree* pc2d_kdtree;
+    pc2d_kdtree = new kdtree2::KDTree(pointcloud2d, true);
+    pc2d_kdtree->sort_results = true;
+
     kdtree2::KDTree* unShrinkingPt_kdtree;
     unShrinkingPt_kdtree = new kdtree2::KDTree(unShrinkingPt, true);
     unShrinkingPt_kdtree->sort_results = true;
@@ -193,6 +200,7 @@ void ExtractCandidatePt::filterCandidatePt(ExtractCandidatePt_pram & power,
     cpt2unShrDis_list.reserve(edgeBalls.matSize);
 
     for (int i = 0; i < edgeBalls.matSize; ++i) {
+
         kdtree2::KDTreeResultVector neighbours;
         //pc_kdtree->n_nearest(this->can_pt_r_bisector_avg[i], 1, neighbours);
         pc_kdtree->n_nearest(this->edgeBalls.atom[i], 1, neighbours);
@@ -202,7 +210,9 @@ void ExtractCandidatePt::filterCandidatePt(ExtractCandidatePt_pram & power,
         //                     NN spatialInterpolation
         ///////////////////////////////////////////////////////////////
         auto xyz = this->can_pt_r_bisector_avg[i];
-        auto z_NN = pointcloud[neighbours[0].idx][2];
+        kdtree2::KDTreeResultVector neighbours1;
+        pc2d_kdtree->n_nearest(masb::Point(xyz[0], xyz[1], 0), 1, neighbours1);
+        auto z_NN = pointcloud[neighbours1[0].idx][2];
         Point candidate(xyz[0], xyz[1], z_NN);
 
         kdtree2::KDTreeResultVector neighbours2;

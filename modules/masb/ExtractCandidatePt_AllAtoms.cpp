@@ -3,9 +3,12 @@ using namespace masb;
 void  masb::allAtoms2Candidates(ExtractCandidatePt_pram & power, MAT &mat, PointList &pointcloud,
     intList &seg_id, PointList &unShrinkingPt, PointList &candidatePt, intList &candidatePt_id) {
 
-    kdtree2::KDTree* pc_kdtree;
-    pc_kdtree = new kdtree2::KDTree(pointcloud, true);
-    pc_kdtree->sort_results = true;
+    PointList pointcloud2d;
+    for (auto &pt : pointcloud)
+        pointcloud2d.push_back(Point(pt[0], pt[1], 0));
+    kdtree2::KDTree* pc2d_kdtree;
+    pc2d_kdtree = new kdtree2::KDTree(pointcloud2d, true);
+    pc2d_kdtree->sort_results = true;
 
     kdtree2::KDTree* unShrinkingPt_kdtree;
     unShrinkingPt_kdtree = new kdtree2::KDTree(unShrinkingPt, true);
@@ -50,7 +53,7 @@ void  masb::allAtoms2Candidates(ExtractCandidatePt_pram & power, MAT &mat, Point
 
             kdtree2::KDTreeResultVector neighbours2PointCloud;
             //pc_kdtree->n_nearest(this->can_pt_r_bisector_avg[i], 1, neighbours);
-            pc_kdtree->n_nearest(pt, 1, neighbours2PointCloud);
+            pc2d_kdtree->n_nearest(Point(xyz[0], xyz[1], 0), 1, neighbours2PointCloud);
             auto nearestPt = pointcloud[neighbours2PointCloud[0].idx];
 
             Point candidate(xyz[0], xyz[1], nearestPt[2]);

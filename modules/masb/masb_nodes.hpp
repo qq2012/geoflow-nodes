@@ -255,7 +255,6 @@ namespace geoflow::nodes::mat {
     public:
         using Node::Node;
         void init() {
-            add_param("filterDistance", (float) 5.00);
             add_param("unshrinkingDist", (float) 0);
             add_param("bis_avg_knn", (int)40);
 
@@ -267,7 +266,7 @@ namespace geoflow::nodes::mat {
             add_output("candidate_points", typeid(PointCollection));
             add_output("candidate_points_id", typeid(vec1i));
         }
-        void gui() {ImGui::SliderFloat("filterEdgeAtom2pointCloudDistance", &param<float>("filterDistance"), 0.1, 1000);
+        void gui() {
             ImGui::SliderFloat("filterCandidatpt2UnshrinkingPtDistance", &param<float>("unshrinkingDist"), 0, 100);
             ImGui::SliderInt("bis_avg_knn", &param<int>("bis_avg_knn"), 5, 50);
         }
@@ -481,6 +480,19 @@ namespace geoflow::nodes::mat {
             add_input("TruePositiveVertices", typeid(PointCollection));//"TestBreakline"
         }
         void process();
+    };
+    class PolyLines3D2objNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_input("polylines", typeid(LineStringCollection));
+            add_param("filepath", (std::string) "polylines.obj");
+        }
+        void gui() {
+            ImGui::InputText("File path", &param<std::string>("filepath"));
+        }
+        void process();
+
     };
 
 }

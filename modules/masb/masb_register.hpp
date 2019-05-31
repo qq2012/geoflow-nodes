@@ -25,6 +25,7 @@ namespace geoflow::nodes::mat {
     R->register_node<adjacencyNode>("adjacencyNode");
     R->register_node<PolylineSmothNode>("PolylineSmothNode");
     R->register_node<ExtractCandidatePtAllAtomsNode>("ExtractCandidatePtAllAtomsNode");
+    R->register_node<PolyLines3D2objNode>("PolyLines3D2objNode");
 
     //R->register_node<SegmentMakerNode>("SegmentMaker");
     //R->register_node<TestPointsNode>("TestPoints");
