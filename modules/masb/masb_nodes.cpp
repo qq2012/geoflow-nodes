@@ -863,7 +863,6 @@ namespace geoflow::nodes::mat {
         ridge::PolyineList linesWithJunction2 = polylines_maxDistance;
         ridge::FindTopology(linesWithJunction2, polyline_id, adjacency);
 
-        //ridge::connectCandidatePtSmooth(symple_segmentList, smoothLine);
         //std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
         //ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter2, segmentList_nosegid);
 
@@ -1000,6 +999,56 @@ namespace geoflow::nodes::mat {
         }
         output("smoothed polyline").set(smoothedPolylines_);
         //output("test polyline").set(testPolyline_coll);
+    }
+
+    void PolylineBSplineSmothNode::process() {
+        auto polyline_linestringcollection = input("polylines").get<LineStringCollection>();
+        
+        ridge::PolyineList polylines;
+        polylines.reserve(polyline_linestringcollection.size());
+        for (auto &polyline_linestring : polyline_linestringcollection) {
+            masb::PointList a_polyline;
+            for (auto &pt : polyline_linestring) {
+                a_polyline.push_back(masb::Point(pt.data()));
+            }
+            polylines.push_back(a_polyline);
+        }
+        
+        //test
+        /*
+        ridge::PolyineList polylines;
+        masb::PointList a_polyline;
+        a_polyline.push_back(masb::Point({ 1,2,13 }));
+        a_polyline.push_back(masb::Point({ 3,2,11 }));
+        a_polyline.push_back(masb::Point({ 5,2,14 }));
+        a_polyline.push_back(masb::Point({ 5,0,25 }));
+        a_polyline.push_back(masb::Point({ 7,0,27 }));
+        a_polyline.push_back(masb::Point({ 9,0,12 }));
+        a_polyline.push_back(masb::Point({ 11,0,15 }));
+        polylines.push_back(a_polyline);
+        */
+        
+        //masb::PointList testpolyline;
+        //auto smoothedPolylines = ridge::polylineSmooth8EigenSpline(polylines);
+        auto smoothedPolylines = ridge::polylineBSplineSmooth(polylines);
+        /*
+        LineStringCollection testPolyline_radom3d;
+        LineString atestPolyline_radom3d;
+        for (auto pt : testpolyline)
+            atestPolyline_radom3d.push_back({ pt[0],pt[1],pt[2] });
+        testPolyline_radom3d.push_back(atestPolyline_radom3d);
+        */
+        LineStringCollection smoothedPolylines_;
+        smoothedPolylines_.reserve(smoothedPolylines.size());
+        for (auto &a_line : smoothedPolylines) {
+            LineString tmp;
+            for (auto&p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            smoothedPolylines_.push_back(tmp);
+        }
+        output("smoothed polyline").set(smoothedPolylines_);
+        //output("test polyline").set(testPolyline_radom3d);
     }
 
 

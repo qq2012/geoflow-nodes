@@ -1,4 +1,5 @@
 #include "ExtractCandidatePt.h"
+
 using namespace masb;
 
 inline bool ExtractCandidatePt::validateCandidate(float deviationAng_thres, Vector &vec1, Vector &vec2) {

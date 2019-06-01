@@ -1,4 +1,6 @@
 #include "ExtractCandidatePt.h"
+
+
 using namespace masb;
 void  masb::allAtoms2Candidates(ExtractCandidatePt_pram & power, MAT &mat, PointList &pointcloud,
     intList &seg_id, PointList &unShrinkingPt, PointList &candidatePt, intList &candidatePt_id) {

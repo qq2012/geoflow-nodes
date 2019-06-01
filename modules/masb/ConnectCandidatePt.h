@@ -21,7 +21,5 @@ namespace ridge{
     void FindTopology(PolyineList &polylines, const masb::intList &polylinesID, const int_pair_vec &adjacency);
     void connectCandidatePtSmooth(PolyineList &symple_segmentList, PolyineList &smoothLine);
     void connectCandidatePtSmooth8Polynomials(PolyineList &Lines);
-    void connectCandidatePt8Spline(masb::PointList &PointCloud, masb::PointList &candidate,
-        masb::intList &seg_id, masb::intList &filter, ridge::PolyineList &line_segmentList, masb::intList &idList);
-}
+    }
 #endif

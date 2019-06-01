@@ -408,6 +408,19 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+    class PolylineBSplineSmothNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_input("polylines", typeid(LineStringCollection));
+            add_output("smoothed polyline", typeid(LineStringCollection));
+            //add_output("test polyline", typeid(LineStringCollection));
+        }
+        //void gui() {
+        //    ImGui::SliderFloat("sharpAng(degree)", &param<float>("sharpAng"), 90, 180);
+        //}
+        void process();
+    };
 
     class PLYLoaderNode :public Node {
     public:

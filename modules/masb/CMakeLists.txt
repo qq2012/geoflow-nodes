@@ -9,13 +9,16 @@ add_library(masb_nodes STATIC
   ExtractCandidatePt_AllAtoms.cpp
   MaPt_in_oneTrace.cpp
   ConnectCandidatePt.cpp
-  ConnectCandidatePt_smooth.cpp
   ConnectCandidatePt_smooth8Polynomials.cpp
-  ConnectCandidatePt_spline.cpp
   FindTopology.cpp
   breaklineValidate.cpp
   sheet_adjacency.cpp
   polylineSmooth.cpp
+  polylineSmooth_Spline.cpp
+  Bezier.cpp
+  BSpline.cpp
+  Curve.cpp
+  Vector.cpp
 )
 
 include_directories(${EIGEN_INCLUDE_DIR})
