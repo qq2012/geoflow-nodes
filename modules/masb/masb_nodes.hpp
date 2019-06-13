@@ -393,7 +393,24 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+    class ConnectCandidatePtPolyfitNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_param("min_error_thresh", (float)0.8);
 
+            add_input("candidate_points", typeid(PointCollection));
+            add_input("candidate_points_id", typeid(vec1i));
+            add_input("pointcloud", typeid(PointCollection));
+            //add_input("adjacency", typeid(ridge::int_pair_vec));
+
+            add_output("polylines", typeid(LineStringCollection));
+        }
+        void gui() {
+            ImGui::SliderFloat("min_error_thresh", &param<float>("min_error_thresh"), 0, 10);
+        }
+        void process();
+    };
     class PolylineSmothNode :public Node {
     public:
         using Node::Node;
@@ -507,5 +524,23 @@ namespace geoflow::nodes::mat {
         void process();
 
     };
-
+    class vectorVisNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_input("startPoint", typeid(PointCollection));
+            add_input("direction", typeid(vec3f));
+            add_output("visulization", typeid(LineStringCollection));
+        }
+        void process();
+    };
+    class vectorVisNode2 :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_input("startPoint", typeid(PointCollection));
+            add_input("endPoint",  typeid(PointCollection));
+        }
+        void process();
+    };
 }

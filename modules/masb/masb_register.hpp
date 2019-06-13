@@ -15,6 +15,7 @@ namespace geoflow::nodes::mat {
     R->register_node<ReadCandidatePtNode>("ReadCandidatePtNode");
     R->register_node<ReadCandidatePtWithBisecNode>("ReadCandidatePtWithBisecNode");
     R->register_node<ConnectCandidatePtNode>("ConnectCandidatePtNode");
+    R->register_node<ConnectCandidatePtPolyfitNode>("ConnectCandidatePtPolyfitNode");
     R->register_node<ReadSegmentRestltNode>("ReadSegmentRestltNode");
     R->register_node<ReadJunctionPtNode>("ReadJunctionPtNode");
     R->register_node<ReadAdjacencyNode>("ReadAdjacencyNode");
@@ -27,6 +28,7 @@ namespace geoflow::nodes::mat {
     R->register_node<ExtractCandidatePtAllAtomsNode>("ExtractCandidatePtAllAtomsNode");
     R->register_node<PolyLines3D2objNode>("PolyLines3D2objNode");
     R->register_node<PolylineBSplineSmothNode>("PolylineBSplineSmothNode");
+    R->register_node<vectorVisNode>("vectorVisNode");
     //R->register_node<SegmentMakerNode>("SegmentMaker");
     //R->register_node<TestPointsNode>("TestPoints");
     //R->register_node<RegionGrowMedialAxisNode>("RegionGrowMedialAxis");

@@ -19,7 +19,8 @@ namespace ridge{
         masb::intList &polyline_id);
     //void connectCandidatePt8MST_nosegid(masb::PointList &PointCloud, masb::PointList &candidate, masb::intList &filter, segment &segmentList);
     void FindTopology(PolyineList &polylines, const masb::intList &polylinesID, const int_pair_vec &adjacency);
-    void connectCandidatePtSmooth(PolyineList &symple_segmentList, PolyineList &smoothLine);
-    void connectCandidatePtSmooth8Polynomials(PolyineList &Lines);
+
+    void ConnectCandidatePt8PolynomialFitting(masb::PointList &pts, masb::intList &pt_id, masb::PointList &pointCloud, 
+        float error_thresh, ridge::PolyineList &polylines);
     }
 #endif

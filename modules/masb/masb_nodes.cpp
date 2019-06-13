@@ -160,8 +160,12 @@ namespace geoflow::nodes::mat {
         //for (auto r : mat.radius)
         //    radius_.push_back(r);
         PointCollection unshrikingGroundPoint_;unshrikingGroundPoint_.reserve(madata.m - mat.matSize);
-        for (auto &p : mat.unshrikingGroundPoint)
+        std::cout << "unshrikingGroundPoint size" << madata.m - mat.matSize << std::endl;
+        for (auto &p : mat.unshrikingGroundPoint) {
             unshrikingGroundPoint_.push_back({ p[0],p[1],p[2] });
+            //std::cout << p[0] << " " << p[1] << " " << p[2]+0.1 << "\n";
+        }
+            
         //mat.fp = fp_;//feature point p
         //mat.fq = fq_;
         vec3f sp_reverse_norm_;sp_reverse_norm_.reserve(mat.matSize);
@@ -946,6 +950,50 @@ namespace geoflow::nodes::mat {
         output("linesWithJunction_maxAccDist").set(linesWithJunction_maxAccDist_);
         output("linesWithJunction_maxDistance").set(linesWithJunction_maxDistance_);
     }
+    void ConnectCandidatePtPolyfitNode::process() {
+        auto error_thresh = param<float>("min_error_thresh");
+
+        auto candidate_pt_ptcollection = input("candidate_points").get<PointCollection>();
+        auto candidate_points_id_vec1i = input("candidate_points_id").get<vec1i>();
+        auto pointcloud_PointCollection = input("pointcloud").get<PointCollection>();
+        //auto adjacency = input("adjacency").get<ridge::int_pair_vec>();
+
+        std::cout << "\nConnectCandidatePtPolyfitNode::process()" << std::endl;
+
+        size_t size = candidate_pt_ptcollection.size();
+        masb::PointList candidate_pt;
+        candidate_pt.reserve(size);
+        for (auto& p : candidate_pt_ptcollection) {
+            candidate_pt.push_back(masb::Point(p.data()));
+        }
+
+        masb::intList candidate_pt_id;
+        candidate_pt_id.reserve(size);
+        for (auto id : candidate_points_id_vec1i) {
+            candidate_pt_id.push_back(id);
+        }
+
+        masb::PointList pointcloud;
+        pointcloud.reserve(pointcloud_PointCollection.size());
+        for (auto &p : pointcloud_PointCollection)
+            pointcloud.push_back(masb::Point(p.data()));
+
+        //float error_thresh = 1000000;
+        ridge::PolyineList polylines;
+        ridge::ConnectCandidatePt8PolynomialFitting(candidate_pt, candidate_pt_id, pointcloud, error_thresh, polylines);
+
+        LineStringCollection polylines_;
+        polylines_.reserve(polylines.size());
+        for (auto&a_line : polylines) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            polylines_.push_back(tmp);
+        }
+
+        output("polylines").set(polylines_);
+    }
 
     void PolylineSmothNode::process() {
         auto polyline_linestringcollection = input("polylines").get<LineStringCollection>();
@@ -1222,5 +1270,25 @@ namespace geoflow::nodes::mat {
         }
         outfile.close();
         //wkt LINESTRING (1 2 0, 4 3 0, 8 9 0)
+    }
+    void vectorVisNode::process() {
+        auto startPoint = input("startPoint").get<PointCollection>();
+        auto direction = input("direction").get<vec3f>();
+
+        if (startPoint.size() != direction.size()) {
+            std::cout << "vectorVisNode::process() size error" << std::endl;
+            return;
+        }
+        LineStringCollection vis_;
+        vis_.reserve(startPoint.size());
+        for (int i = 0; i < startPoint.size(); ++i) {
+            LineString tmp;
+            auto pt = startPoint[i];
+            auto v = direction[i];
+            tmp.push_back(pt);
+            tmp.push_back({ pt[0] + v[0],pt[1] + v[1],pt[2] + v[2] });
+            vis_.push_back(tmp);
+        }
+        output("visulization").set(vis_);
     }
 }
