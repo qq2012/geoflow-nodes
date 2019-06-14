@@ -403,6 +403,7 @@ namespace geoflow::nodes::mat {
         using Node::Node;
         void init() {
             add_param("min_error_thresh", (float)0.8);
+            add_param("fit order", (int)4);
 
             add_input("candidate_points", typeid(PointCollection));
             add_input("candidate_points_id", typeid(vec1i));
@@ -413,6 +414,7 @@ namespace geoflow::nodes::mat {
         }
         void gui() {
             ImGui::SliderFloat("min_error_thresh", &param<float>("min_error_thresh"), 0, 10);
+            ImGui::SliderInt("fit order", &param<int>("fit order"), 0, 5);
         }
         void process();
     };

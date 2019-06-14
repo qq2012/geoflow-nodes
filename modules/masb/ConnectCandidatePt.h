@@ -21,6 +21,7 @@ namespace ridge{
     void FindTopology(PolyineList &polylines, const masb::intList &polylinesID, const int_pair_vec &adjacency);
 
     void ConnectCandidatePt8PolynomialFitting(masb::PointList &pts, masb::intList &pt_id, masb::PointList &pointCloud, 
-        float error_thresh, ridge::PolyineList &polylines);
+        float error_thresh, ridge::PolyineList &polylines, const int &order);
+
     }
 #endif

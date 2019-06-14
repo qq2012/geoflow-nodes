@@ -939,6 +939,7 @@ namespace geoflow::nodes::mat {
     }
     void ConnectCandidatePtPolyfitNode::process() {
         auto error_thresh = param<float>("min_error_thresh");
+        auto order = param<int>("fit order");
 
         auto candidate_pt_ptcollection = input("candidate_points").get<PointCollection>();
         auto candidate_points_id_vec1i = input("candidate_points_id").get<vec1i>();
@@ -967,7 +968,8 @@ namespace geoflow::nodes::mat {
 
         //float error_thresh = 1000000;
         ridge::PolyineList polylines;
-        ridge::ConnectCandidatePt8PolynomialFitting(candidate_pt, candidate_pt_id, pointcloud, error_thresh, polylines);
+        ridge::ConnectCandidatePt8PolynomialFitting(candidate_pt, candidate_pt_id, pointcloud,
+            error_thresh, polylines, order);
 
         LineStringCollection polylines_;
         polylines_.reserve(polylines.size());

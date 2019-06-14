@@ -2,7 +2,7 @@
 #include <map>
 
 void ridge::ConnectCandidatePt8PolynomialFitting(masb::PointList &pts, masb::intList &pt_id, masb::PointList &pointCloud,
-    float error_thresh, ridge::PolyineList &polylines) {
+    float error_thresh, ridge::PolyineList &polylines, const int &order) {
     std::cout << "ridge::ConnectCandidatePt8PolynomialFitting()"
         << "\nerror_thresh = " << error_thresh << std::endl;
 
@@ -45,7 +45,7 @@ void ridge::ConnectCandidatePt8PolynomialFitting(masb::PointList &pts, masb::int
 
         masb::PointList fittinyPolyline_xy0;
         float min_error;
-        masb::PolynomialFitting(cur_pt, fittinyPolyline_xy0, min_error);
+        masb::PolynomialFitting(cur_pt, order,fittinyPolyline_xy0, min_error);
 
 
         std::cout << " average_min_error = min_error / cur_size = " << min_error / cur_size << std::endl;

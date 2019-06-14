@@ -16,7 +16,7 @@
 
 namespace masb {
 
-    void PolynomialFitting(const masb::PointList &pts, masb::PointList &polyline,float &min_error);
+    void PolynomialFitting(const masb::PointList &pts, const int &order, masb::PointList &polyline,float &min_error);
 
     class idx_filter {
     public:
