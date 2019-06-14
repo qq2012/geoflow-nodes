@@ -5,7 +5,7 @@
 #include <cmath>
 #include <iostream>
 namespace masb {
-    void compute_ma_geometry_new(ma_data &madata, MAT &mat, bool isInterior) {
+    void compute_ma_geometry_new(const ma_data &madata, MAT &mat, const bool isInterior) {
         int startIdx, endIdx;
         if (isInterior) {
             startIdx = 0;

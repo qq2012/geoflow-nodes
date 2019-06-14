@@ -15,7 +15,6 @@ namespace masb{
     };
     class MaPt_in_oneTrace {
     public:
-        pt_Trace_pram power;
         ridge::PolyineList traces;
         masb::intList trace_seg_id;
 

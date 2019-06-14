@@ -29,7 +29,7 @@ inline float AngleCalaulater(const masb::Point &p1, const masb::Point &c, const 
 }
 
 PolyineList ridge::polylineSmooth(const PolyineList &polylines, const float sharpAnlge) {
-    //std::cout << "test AngleCalaulater()" << std::endl;
+    std::cout << "\nridge::polylineSmooth()" << std::endl;
     //AngleCalaulater(masb::Point({ 0,0,1 }), masb::Point({ 0,0,0 }), masb::Point({ 1,0,0 }));
 
     PolyineList smoothedPolylines = polylines;
@@ -37,7 +37,7 @@ PolyineList ridge::polylineSmooth(const PolyineList &polylines, const float shar
     for (auto &a_polyline : smoothedPolylines) {
         std::vector<float> AngList;
         
-        std::cout << "a_polyline size" << a_polyline.size() << std::endl;
+        std::cout << "before smooth a_polyline size" << a_polyline.size() << std::endl;
 
         for (int idx = 1; idx < a_polyline.size()-1; ++idx) {
             masb::Point p1 = a_polyline[idx - 1];
@@ -74,7 +74,7 @@ PolyineList ridge::polylineSmooth(const PolyineList &polylines, const float shar
             //std::cout << "minAng degree " << minAng / PI * 180 
             //    << " minElementIndex" << minElementIndex << std::endl;
         }
-        std::cout << "a_polyline size" << a_polyline.size() << std::endl;
+        std::cout << "after smooth a_polyline size" << a_polyline.size() << std::endl;
     }
     return smoothedPolylines;
 }

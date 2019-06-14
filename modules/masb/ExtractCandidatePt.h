@@ -26,8 +26,6 @@ namespace masb {
 
     class ExtractCandidatePt {
     public:
-        ExtractCandidatePt_pram power;
-
         MAT edgeBalls;
         intList edgeBall_id;
         PointList can_pt_r;

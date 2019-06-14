@@ -147,9 +147,12 @@ ridge::PolyineList ridge::polylineSmooth8EigenSpline(ridge::PolyineList &polylin
 }
 
 ridge::PolyineList ridge::polylineBSplineSmooth(ridge::PolyineList &polylines) {
-
+    std::cout << "\nridge::polylineBSplineSmooth()" << std::endl;
     PolyineList smoothedPolylines;
     for (auto &a_polyline : polylines) {
+
+        std::cout << "before smooth a_polyline.size = " << a_polyline.size() << std::endl;
+
         int size = a_polyline.size()*1.5;
         masb::PointList aSmothLine;
         Curve* curve = new Bezier();
@@ -157,8 +160,8 @@ ridge::PolyineList ridge::polylineBSplineSmooth(ridge::PolyineList &polylines) {
         for (auto& pt : a_polyline) {
             curve->add_way_point(Vector(pt[0], pt[1], pt[2]));
         }
-        std::cout << "nodes: " << curve->node_count() << std::endl;
-        std::cout << "total length: " << curve->total_length() << std::endl;
+        //std::cout << "nodes: " << curve->node_count() << std::endl;
+        //std::cout << "total length: " << curve->total_length() << std::endl;
         for (int i = 0; i < curve->node_count(); ++i) {
             //std::cout << "node #" << i << ": " << curve->node(i).toString()
             //    << " (length so far: " << curve->length_from_starting_point(i) << ")" << std::endl;
@@ -167,6 +170,8 @@ ridge::PolyineList ridge::polylineBSplineSmooth(ridge::PolyineList &polylines) {
         }
         smoothedPolylines.push_back(aSmothLine);
         delete curve;
+
+        std::cout << "after smooth aSmothLine.size = " << aSmothLine.size() << std::endl;
     }
     return smoothedPolylines;
     /*

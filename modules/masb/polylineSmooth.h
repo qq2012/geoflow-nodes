@@ -11,7 +11,6 @@ namespace ridge {
     PolyineList polylineSmooth(const PolyineList &polylines, const float sharpAnlge);
     PolyineList polylineSmooth8EigenSpline(ridge::PolyineList &polylines);
     PolyineList polylineBSplineSmooth(ridge::PolyineList &polylines);
-    //
     //PolyineList polylineSmooth8boostInterpolatorsCubic_b_spline(const PolyineList &polylines);
 
     class SplineFunctionEigen {
