@@ -12,17 +12,18 @@ namespace geoflow::nodes::mat {
     R->register_node<MedialSegmentNode>("MedialSegmentNode");
     R->register_node<MaPt_in_oneTraceNode>("MaPt_in_oneTraceNode");
     R->register_node<ExtractCandidatePtNode>("ExtractCandidatePtNode");
-    R->register_node<ReadCandidatePtNode>("ReadCandidatePtNode");
-    R->register_node<ReadCandidatePtWithBisecNode>("ReadCandidatePtWithBisecNode");
+    //R->register_node<ReadCandidatePtNode>("ReadCandidatePtNode");
+    //R->register_node<ReadCandidatePtWithBisecNode>("ReadCandidatePtWithBisecNode");
     R->register_node<ConnectCandidatePtNode>("ConnectCandidatePtNode");
     R->register_node<ConnectCandidatePtPolyfitNode>("ConnectCandidatePtPolyfitNode");
-    R->register_node<ReadSegmentRestltNode>("ReadSegmentRestltNode");
-    R->register_node<ReadJunctionPtNode>("ReadJunctionPtNode");
-    R->register_node<ReadAdjacencyNode>("ReadAdjacencyNode");
+    //R->register_node<ReadSegmentRestltNode>("ReadSegmentRestltNode");
+    //R->register_node<ReadJunctionPtNode>("ReadJunctionPtNode");
+    //R->register_node<ReadAdjacencyNode>("ReadAdjacencyNode");
     R->register_node<LoadReferenceBreaklineNode>("LoadReferenceBreaklineNode");
     R->register_node<BreaklineValidationNode>("BreaklineValidationNode");
     R->register_node<SelectTestBreaklineNode>("SelectTestBreaklineNode");
     R->register_node<LoadTruePositiveVerticesNode>("LoadTruePositiveVerticesNode");
+
     R->register_node<adjacencyNode>("adjacencyNode");
     R->register_node<PolylineSmothNode>("PolylineSmothNode");
     R->register_node<ExtractCandidatePtAllAtomsNode>("ExtractCandidatePtAllAtomsNode");

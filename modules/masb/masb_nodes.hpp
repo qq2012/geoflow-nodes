@@ -274,7 +274,7 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
-
+    /*
     class ReadCandidatePtNode :public Node {
     public:
         using Node::Node;
@@ -285,7 +285,8 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
-
+    */
+    /*
     class ReadCandidatePtWithBisecNode :public Node {
     public:
         using Node::Node;
@@ -303,6 +304,8 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+    */
+    /*
     class ReadSegmentRestltNode :public Node {
     public:
 
@@ -353,7 +356,7 @@ namespace geoflow::nodes::mat {
         void process();
 
     };
-
+    */
     class SegmentRestlt_TraceNode :public Node {
     public:
 

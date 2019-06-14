@@ -483,6 +483,7 @@ namespace geoflow::nodes::mat {
         output("candidate_points").set(candidatePt_);
         output("candidate_points_id").set(candidatePt_id_);
     }
+    /*
     void ReadCandidatePtNode::process() {
         PointCollection candidate_r_;
         vec3f direction_;
@@ -807,6 +808,7 @@ namespace geoflow::nodes::mat {
 
         output("sheet-sheet").set(sheet_sheet_);
     }
+    */
     void ConnectCandidatePtNode::process() {
         auto candidate_pt_ptcollection = input("candidate_points").get<PointCollection>();
         auto point_directon_vec3f = input("point_directon").get<vec3f>();
