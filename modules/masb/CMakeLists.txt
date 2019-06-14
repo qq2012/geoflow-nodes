@@ -10,6 +10,7 @@ add_library(masb_nodes STATIC
   MaPt_in_oneTrace.cpp
   ConnectCandidatePt.cpp
   ConnectCandidatePt_PolynomialFitting.cpp
+  PtinDirectionLine.cpp
   FindTopology.cpp
   breaklineValidate.cpp
   sheet_adjacency.cpp

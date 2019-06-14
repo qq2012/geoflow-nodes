@@ -3,35 +3,29 @@
 #include <madata.h>
 #include <iostream>
 
-#include "Ma_utility.h"
-
 namespace masb{
-    class pt_Trace_pram {
+    struct pt_Trace_pram {
     public:
-        std::string method = "fixe radius";
-        int k_neighbours;
-        float SearchRadius = 45;
-        float deviationAng_thres = 10.0;
-        pt_Trace_pram() {
-            this->deviationAng_thres = cos((this->deviationAng_thres / 180.0)*PI);
+        float SearchRadius;
+        float deviationAng_thres;//cos value
+        pt_Trace_pram(float r = 45, float Ang_deg = 10) :SearchRadius(r), deviationAng_thres(cos((Ang_deg / 180.0)*PI)) {
+            std::cout << "PtinDirectionLine_param constructor:: SearchRadius = " << SearchRadius
+                << " cos(deviationAng_thres) = " << deviationAng_thres << std::endl;
         }
     };
     class MaPt_in_oneTrace {
     public:
         pt_Trace_pram power;
-        std::vector<PointList> candidate_r, candidate_cos;
-        std::vector <VectorList> candidate_dir;
-        typedef std::vector<PointList> traces_in_one_sheet;
-        typedef std::vector<traces_in_one_sheet> trace_shape;
-        trace_shape all_traces;
-        std::vector<size_t> segmentation;
-        size_t candidate_size = 0;
+        ridge::PolyineList traces;
+        masb::intList trace_seg_id;
 
-        void processing(pt_Trace_pram& power,mat_data &madata, ma_Geometry &maGeometry, Sheet_idx_List &sheets);
+        void MaPt_in_oneTrace::processing(pt_Trace_pram& power, MAT &mat, masb::intList &seg_id);
     private:
-        size_tList find_trace(pt_Trace_pram&power, size_t &pt_idx,
-            mat_data &maData, ma_Geometry &maGeometry, intList &visitFlag);
+        masb::PointList find_trace(pt_Trace_pram&power, size_t &pt_idx,
+            masb::PointList &cur_pt, masb::floatList &cur_radius, masb::VectorList &cur_direc, 
+            kdtree2::KDTree* ptkdtree,intList &visitFlag);
         inline bool validateCandidate(float deviationAng_thres, Vector &vec1, Vector &vec2);
     };
+
 }
 #endif

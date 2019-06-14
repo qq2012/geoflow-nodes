@@ -291,52 +291,37 @@ namespace geoflow::nodes::mat {
         output("junction points").set(junction_);
     };
     void MaPt_in_oneTraceNode::process() {
-        auto madata = input("madata").get<masb::mat_data>();
-        auto maGeometry = input("maGeometry").get<masb::ma_Geometry>();
-        auto sheets = input("sheets").get<masb::Sheet_idx_List>();
+        auto mat = input("mat").get<masb::MAT>();
+        auto seg_id_vec1i = input("seg_id").get<vec1i>();
 
-        masb::pt_Trace_pram  params;
-        params.SearchRadius = param<float>("SearchRadius");
+        auto r = param<float>("SearchRadius");
+        auto deviationAng_thres_deg = param<float>("deviationAng_thres");
+        masb::pt_Trace_pram power(r,deviationAng_thres_deg);
+        
+        masb::intList seg_id;
+        seg_id.reserve(seg_id_vec1i.size());
+        for (auto id : seg_id_vec1i)
+            seg_id.push_back(id);
         masb::MaPt_in_oneTrace tracer;
-        tracer.processing(params, madata, maGeometry, sheets);
+        tracer.processing(power, mat, seg_id);
 
-        vec1i seg_idx_;
-        PointCollection candidate_r_, candidate_cos_;
-        candidate_r_.reserve(tracer.candidate_size);
-        candidate_cos_.reserve(tracer.candidate_size);
+        vec1i trace_seg_id_;
+        trace_seg_id_.reserve(tracer.trace_seg_id.size());
+        for (auto i : tracer.trace_seg_id)
+            trace_seg_id_.push_back(i);
 
-        int i = 0;
-        for (auto canInSheet : tracer.candidate_r) {
-            for (auto p : canInSheet) {
-                candidate_r_.push_back({ p[0], p[1], p[2] });
+        LineStringCollection traces_;
+        traces_.reserve(tracer.traces.size());
+        for (auto &a_line : tracer.traces) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
             }
-            vec1i temp;
-            temp.resize(canInSheet.size(), i++);//check should start from 1;
-            seg_idx_.insert(seg_idx_.end(), temp.begin(), temp.end());
-        }
-        for (auto canInSheet : tracer.candidate_cos) {
-            for (auto p : canInSheet) {
-                candidate_cos_.push_back({ p[0], p[1], p[2] });
-            }
-        }
-        LineStringCollection traces;
-        //int j =0;
-        for (auto &traces_in_1_sheet : tracer.all_traces) {
-            for (auto & a_trace : traces_in_1_sheet) {
-                LineString a_trace_LineString;
-                a_trace_LineString.reserve(a_trace.size());
-                for (auto p : a_trace) {
-                    a_trace_LineString.push_back({ p[0], p[1], p[2] });
-                }
-                traces.push_back(a_trace_LineString);
-            }
+            traces_.push_back(tmp);
         }
 
-        output("candidate_r").set(candidate_r_);
-        output("candidate_cos").set(candidate_cos_);
-        output("lable").set(seg_idx_);
-        output("traces").set(traces);// TT_line_string_collection);
-
+        output("treces").set(traces_);
+        output("trace_seg_id").set(trace_seg_id_);
     }
 
     void ExtractCandidatePtNode::process() {
