@@ -17,6 +17,7 @@ add_library(masb_nodes STATIC
   polylineSmooth.cpp
   polylineSmooth_Spline.cpp
   PolynomialFitting.cpp
+  coordinateTransformation.cpp
   Bezier.cpp
   BSpline.cpp
   Curve.cpp

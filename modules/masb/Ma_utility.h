@@ -18,6 +18,17 @@ namespace masb {
 
     void PolynomialFitting(const masb::PointList &pts, const int &order, masb::PointList &polyline,float &min_error);
 
+    class coordinateTransformation_2d {
+    public:
+        masb::Vector_2d x_axis;
+        masb::Vector_2d y_axis;
+        void Transform(const masb::PointList &input_pts, masb::PointList &Transform_Pts);
+        void InverseTransform(const masb::PointList &pts, masb::PointList &Transform_Pts);
+    private:
+        void ComputeNewAxis(const masb::PointList &input_pts);
+    };
+    
+
     class idx_filter {
     public:
         void processing(ma_data &madata, ma_Geometry &maGeometry,intList &remaining_idx, 

@@ -42,6 +42,9 @@ void ridge::ConnectCandidatePt8PolynomialFitting(masb::PointList &pts, masb::int
             std::cout << "Error" << std::endl;
 
         // coordinate transform
+        //masb::coordinateTransformation_2d coorTrans;
+        //masb::PointList cur_pt_t;
+        //coorTrans.Transform(cur_pt, cur_pt_t);
 
         masb::PointList fittinyPolyline_xy0;
         float min_error;
@@ -51,19 +54,22 @@ void ridge::ConnectCandidatePt8PolynomialFitting(masb::PointList &pts, masb::int
         std::cout << " average_min_error = min_error / cur_size = " << min_error / cur_size << std::endl;
 
         if (min_error / cur_size < error_thresh) {
-            masb::PointList fittinyPolyline;
+            masb::PointList fittingPolyline, fittinyPolyline_rt;
             for (auto &xy0 : fittinyPolyline_xy0) {
                 kdtree2::KDTreeResultVector neighbours;
                 pc2d_kdtree->n_nearest(xy0, 1, neighbours);
                 auto z_NN = pointCloud[neighbours[0].idx][2];
                 masb::Point p(xy0[0], xy0[1], z_NN);
+                fittingPolyline.push_back(p);
 
-                // coordinate transform 
-                fittinyPolyline.push_back(p);
+                // coordinate Inverse transform 
+                //coorTrans.InverseTransform(fittinyPolyline, fittinyPolyline_rt);
             }
-            polylines.push_back(fittinyPolyline);
+            polylines.push_back(fittingPolyline);
+            //polylines.push_back(fittinyPolyline_rt);
         }
         else
             std::cout << "sheet " << cur_sheet << "does not include" << std::endl;
+
     }
 }
