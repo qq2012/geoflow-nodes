@@ -174,14 +174,21 @@ namespace geoflow::nodes::mat {
         void init() {
             add_param("searchRadius", (float) 20.00);
             add_param("adjacency_thresh", (int)10);
+            add_param("OnlySurfaceAdjacent", (bool)true);
+            add_param("surf-deep_thresh",(float)100.0);
+
+            add_input("pointCloud", typeid(PointCollection));
             add_input("mat", typeid(masb::MAT));
             add_input("sheets", typeid(masb::Sheet_idx_List));
+            
             add_output("sheet-sheet adjacency", typeid(ridge::int_pair_vec));
             add_output("junction points", typeid(PointCollection));
         }
         void gui() {
             ImGui::SliderFloat("searchRadius", &param<float>("searchRadius"), 0, 200);
             ImGui::SliderInt("adjacency_thresh", &param<int>("adjacency_thresh"), 0, 100);
+            ImGui::Checkbox("OnlySurfaceAdjacent", &param<bool>("OnlySurfaceAdjacent"));
+            ImGui::SliderFloat("surf-deep_thresh", &param<float>("surf-deep_thresh"), 0, 200);
         }
         void process();
     };
@@ -384,7 +391,6 @@ namespace geoflow::nodes::mat {
             add_input("candidate_points", typeid(PointCollection));
             add_input("point_directon", typeid(vec3f));
             add_input("candidate_points_id", typeid(vec1i));
-            add_input("adjacency", typeid(ridge::int_pair_vec));
 
             add_output("mstLineSegment", typeid(LineStringCollection));
             add_output("mstLineSegment_id", typeid(vec1i));
@@ -393,8 +399,6 @@ namespace geoflow::nodes::mat {
             add_output("polylines_maxPtNum", typeid(LineStringCollection));
             add_output("polyline_id", typeid(vec1i));
 
-            add_output("linesWithJunction_maxAccDist", typeid(LineStringCollection));
-            add_output("linesWithJunction_maxDistance", typeid(LineStringCollection));
         }
         void process();
     };
@@ -418,6 +422,20 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+
+    class BreaklineTopologyNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_input("surface adjacency", typeid(ridge::int_pair_vec));
+            add_input("input polylines", typeid(LineStringCollection));
+            add_input("input polyline_id", typeid(vec1i));
+
+            add_output("polylineWithTopology", typeid(LineStringCollection));
+        }
+        void process();
+    };
+
     class PolylineSmothNode :public Node {
     public:
         using Node::Node;

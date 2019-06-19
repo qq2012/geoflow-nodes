@@ -272,15 +272,25 @@ namespace geoflow::nodes::mat {
     void adjacencyNode::process(){
         auto mat = input("mat").get<masb::MAT>();
         auto sheets = input("sheets").get<masb::Sheet_idx_List>();
+        auto pointCloud_collection = input("pointCloud").get<PointCollection>();
+
+        masb::PointList pointCloud;
+        pointCloud.reserve(pointCloud_collection.size());
+        for (auto& p : pointCloud_collection) {
+            pointCloud.push_back(masb::Point(p.data()));
+        }
 
         std::cout << "\nadjacencyNode::process()" << std::endl;
         ridge::adjacency_parameters  params;
         params.searchRadius = param<float>("searchRadius");
         params.adjacency_thresh = param<int>("adjacency_thresh");
+        params.OnlySurfaceAdjacent = param<bool>("OnlySurfaceAdjacent");
+        params.DeepSurf_thresh = param<float>("surf-deep_thresh");
 
         ridge::int_pair_vec adjacency;
         masb::PointList junction;
-        ridge::adjacencyProcessing(params, mat, sheets, adjacency, junction);
+        masb::intList junctionID;
+        ridge::adjacencyProcessing(params, mat, pointCloud,sheets, adjacency, junction, junctionID);
 
         vec3f junction_;
         junction_.reserve(junction.size());
@@ -813,7 +823,6 @@ namespace geoflow::nodes::mat {
         auto candidate_pt_ptcollection = input("candidate_points").get<PointCollection>();
         auto point_directon_vec3f = input("point_directon").get<vec3f>();
         auto candidate_points_id_vec1i = input("candidate_points_id").get<vec1i>();
-        auto adjacency = input("adjacency").get<ridge::int_pair_vec>();
         
         std::cout << "\nConnectCandidatePtNode::process()" << std::endl;
 
@@ -848,15 +857,6 @@ namespace geoflow::nodes::mat {
             mstLineSegment, mstLineSegment_id, polylines_maxDistance, polylines_maxAccDist, 
             polylines_maxPtNum, polyline_id);
  
-        ridge::PolyineList linesWithJunction1 = polylines_maxAccDist;
-        ridge::FindTopology(linesWithJunction1, polyline_id, adjacency);
-
-        ridge::PolyineList linesWithJunction2 = polylines_maxDistance;
-        ridge::FindTopology(linesWithJunction2, polyline_id, adjacency);
-
-        //std::cout << "STARTING METHOD 2 -- NO SEG-ID\n";
-        //ridge::connectCandidatePt8MST_nosegid(pointCloud, candidate_r, filter2, segmentList_nosegid);
-
         LineStringCollection mstLineSegment_;
         mstLineSegment_.reserve(mstLineSegment.size());
         for (auto &pointpair : mstLineSegment) {
@@ -907,35 +907,12 @@ namespace geoflow::nodes::mat {
         for (auto i : polyline_id)
             polyline_id_.push_back(i);
 
-        LineStringCollection linesWithJunction_maxAccDist_;
-        linesWithJunction_maxAccDist_.reserve(linesWithJunction1.size());
-        for (auto &a_line : linesWithJunction1) {
-            LineString tmp;
-            for (auto &p : a_line) {
-                tmp.push_back({ p[0],p[1],p[2] });
-            }
-            linesWithJunction_maxAccDist_.push_back(tmp);
-        }
-
-        LineStringCollection linesWithJunction_maxDistance_;
-        linesWithJunction_maxDistance_.reserve(linesWithJunction2.size());
-        for (auto&a_line : linesWithJunction2) {
-            LineString tmp;
-            for (auto &p : a_line) {
-                tmp.push_back({ p[0],p[1],p[2] });
-            }
-            linesWithJunction_maxDistance_.push_back(tmp);
-        }
-
-
         output("mstLineSegment").set(mstLineSegment_);
         output("mstLineSegment_id").set(mstLineSegment_id_);
         output("polylines_maxDistance").set(polylines_maxDistance_);
         output("polylines_maxAccDist").set(polylines_maxAccDist_);
         output("polylines_maxPtNum").set(polylines_maxPtNum_);
         output("polyline_id").set(polyline_id_);
-        output("linesWithJunction_maxAccDist").set(linesWithJunction_maxAccDist_);
-        output("linesWithJunction_maxDistance").set(linesWithJunction_maxDistance_);
     }
     void ConnectCandidatePtPolyfitNode::process() {
         auto error_thresh = param<float>("min_error_thresh");
@@ -982,6 +959,41 @@ namespace geoflow::nodes::mat {
         }
 
         output("polylines").set(polylines_);
+    }
+
+    void BreaklineTopologyNode::process() {
+        auto input_polylines = input("input polylines").get<LineStringCollection>();
+        auto polyline_id_vec1i = input("input polyline_id").get<vec1i>();
+        auto SurfAdjacency = input("surface adjacency").get<ridge::int_pair_vec>();
+        
+        ridge::PolyineList polylines;
+        polylines.reserve(input_polylines.size());
+        for (auto &a_line : input_polylines) {
+            masb::PointList tmp;
+            for (auto &p : a_line) {
+                tmp.push_back(masb::Point(p.data()));
+            }
+            polylines.push_back(tmp);
+        }
+
+        masb::intList polyline_id;
+        polyline_id.reserve(polyline_id_vec1i.size());
+        for (auto i : polyline_id_vec1i)
+            polyline_id.push_back(i);
+
+        ridge::FindTopology(polylines, polyline_id, SurfAdjacency);
+
+        LineStringCollection linesWithJunction_;
+        linesWithJunction_.reserve(polylines.size());
+        for (auto&a_line : polylines) {
+            LineString tmp;
+            for (auto &p : a_line) {
+                tmp.push_back({ p[0],p[1],p[2] });
+            }
+            linesWithJunction_.push_back(tmp);
+        }
+
+        output("polylineWithTopology").set(linesWithJunction_);
     }
 
     void PolylineSmothNode::process() {
