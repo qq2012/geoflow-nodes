@@ -192,7 +192,7 @@ namespace geoflow::nodes::mat {
         output("ma_direction").set(ma_direction_);
         output("mat").set(mat);
     }
-
+    /*
     void FilterRNode::process() {
         auto ma_radius_vec1f = input("ma_radius").get<vec1f>();
 
@@ -206,7 +206,7 @@ namespace geoflow::nodes::mat {
         //std::cout << remaining_idx.data() << '\n';
         output("remaining_idx").set(remaining_idx);
     }
-
+    */
     void MedialSegmentNode::process() {
         auto mat = input("mat").get<masb::MAT>();
         
@@ -373,6 +373,7 @@ namespace geoflow::nodes::mat {
         extractor.processing(params,mat, pointcloud, seg_id, unShrinkingPt);
 
         PointCollection edgeBalls_atoms_; 
+        vec3f edgeBallBisector, edgeBallMa_direction;
         vec1i edgeBall_id_;
 
         PointCollection candidate_r_, candidate_cos_;
@@ -388,6 +389,14 @@ namespace geoflow::nodes::mat {
         edgeBalls_atoms_.reserve(s);
         for (auto &p : extractor.edgeBalls.atom)
             edgeBalls_atoms_.push_back({ p[0],p[1],p[2] });
+
+        edgeBallBisector.reserve(s);
+        for (auto &v : extractor.edgeBalls.bisector)
+            edgeBallBisector.push_back({ v[0],v[1],v[2] });
+
+        edgeBallMa_direction.reserve(s);
+        for(auto &v:extractor.edgeBalls.ma_direction)
+            edgeBallMa_direction.push_back({ v[0],v[1],v[2] });
 
         edgeBall_id_.reserve(s);
         for (auto id : extractor.edgeBall_id)
@@ -429,6 +438,8 @@ namespace geoflow::nodes::mat {
         std::cout << "ExtractCandidatePtNode:: there are " << s2 << " candidate points" << std::endl;
 
         output("edgeBallAtom").set(edgeBalls_atoms_);
+        output("edgeBallBisector").set(edgeBallBisector);
+        output("edgeBallMa_direction").set(edgeBallMa_direction);
         output("edgeBall_id").set(edgeBall_id_);
         output("candidate_r").set(candidate_r_);
         output("candidate_cos").set(candidate_cos_);
@@ -439,6 +450,44 @@ namespace geoflow::nodes::mat {
         output("candidate_points_radius").set(candidate_radius_);
         output("candidate_points_direction").set(candidate_direction_);
     }
+    
+    void MATFilteringNode::process() {
+        auto mat = input("mat").get<masb::MAT>();
+        auto seg_id_vec1i = input("seg_id").get<vec1i>();
+        auto pointcloud_PointCollection = input("pointcloud").get<PointCollection>();
+        auto unShrinkingPt_PointCollection = input("unShrinking point cloud").get<PointCollection>();
+
+        std::cout << "\nMATFilteringNode::process()" << std::endl;
+        //condition_pram(float r_x, float r_n, float d_p, float d_u)
+        masb::condition_pram  params(param<float>("MaxEdgeBallRadius"), param<float>("MinEdgeBallRadius"),
+            param<float>("filterDistance"), param<float>("unshrinkingDist"));
+
+        masb::intList seg_id;
+        seg_id.reserve(seg_id_vec1i.size());
+        for (auto id : seg_id_vec1i)
+            seg_id.push_back(id);
+
+        masb::PointList pointcloud;
+        pointcloud.reserve(pointcloud_PointCollection.size());
+        for (auto &p : pointcloud_PointCollection)
+            pointcloud.push_back(masb::Point(p.data()));
+
+        masb::PointList unShrinkingPt;
+        unShrinkingPt.reserve(unShrinkingPt_PointCollection.size());
+        for (auto &p : unShrinkingPt_PointCollection)
+            unShrinkingPt.push_back(masb::Point(p.data()));
+
+        auto filter = masb::conditionFilter(mat, params, pointcloud, unShrinkingPt, seg_id);
+
+        vec1i filter_;
+        filter.reserve(mat.matSize);
+        for (auto i : filter)
+            filter_.push_back(i);
+
+        output("filter").set(filter_);
+    }
+    
+
     void ExtractCandidatePtAllAtomsNode::process() {
         auto mat = input("mat").get<masb::MAT>();
         auto seg_id_vec1i = input("seg_id").get<vec1i>();
@@ -1223,7 +1272,11 @@ namespace geoflow::nodes::mat {
         for (auto &p : TestBreakline_) {
             std::cout << p[0] << ";" << p[1] << ";" << p[2] << "\n";
         }
+        LineStringCollection TestBreakline4obj;
+        TestBreakline4obj.push_back(TestBreakline_);
+
         output("TestBreakline").set(TestBreakline_);
+        output("TestBreakline4obj").set(TestBreakline4obj);
     }
     void BreaklineValidationNode::process() {
         auto ReferenceVertices = input("ReferenceVertices").get<PointCollection>();

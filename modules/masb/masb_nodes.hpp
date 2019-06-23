@@ -85,6 +85,7 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+    /*
     class FilterRNode :public Node {
     public:
         //float radius = 200.00;
@@ -100,6 +101,7 @@ namespace geoflow::nodes::mat {
         void process();
 
     };
+    */
     class MedialSegmentNode :public Node {
     private:
         masb::METHOD current_method = masb::bisector;
@@ -234,8 +236,8 @@ namespace geoflow::nodes::mat {
             //add_output("sp_reverse_norm", typeid(vec3f));
             //add_output("spokeVectorP", typeid(vec3f));
             //add_output("spokeVectorQ", typeid(vec3f));
-            //add_output("bisector", typeid(vec3f));
-            //add_output("ma_direction", typeid(vec3f));
+            add_output("edgeBallBisector", typeid(vec3f));
+            add_output("edgeBallMa_direction", typeid(vec3f));
             add_output("edgeBall_id", typeid(vec1i));
 
             add_output("candidate_r", typeid(PointCollection));
@@ -249,7 +251,7 @@ namespace geoflow::nodes::mat {
             add_output("candidate_points_direction", typeid(vec3f));
         }
         void gui() {
-            ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 20, 100);
+            ImGui::SliderFloat("SearchRadius", &param<float>("SearchRadius"), 0.001, 100);
             ImGui::SliderFloat("deviationAng_thres", &param<float>("deviationAng_thres"), 0, 45);
             ImGui::SliderFloat("MaxEdgeBallRadius(curvature=1/r)", &param<float>("MaxEdgeBallRadius"), 0, 100);
             ImGui::SliderFloat("MinEdgeBallRadius(curvature=1/r)",&param<float>("MinEdgeBallRadius"), 0, 10);
@@ -259,7 +261,32 @@ namespace geoflow::nodes::mat {
         }
         void process();
     };
+    
+    class MATFilteringNode :public Node {
+    public:
+        using Node::Node;
+        void init() {
+            add_param("MaxEdgeBallRadius", (float) 20.00);
+            add_param("MinEdgeBallRadius", (float) 0.00);
+            add_param("filterDistance", (float) 300.00);
+            add_param("unshrinkingDist", (float) 3.50);
 
+            add_input("mat", typeid(masb::MAT));
+            add_input("seg_id", typeid(vec1i));
+            add_input("pointcloud", typeid(PointCollection));
+            add_input("unShrinking point cloud", typeid(PointCollection));
+
+            add_output("filter", typeid(vec1i));
+        }
+        void gui() {
+            ImGui::SliderFloat("MaxEdgeBallRadius(curvature=1/r)", &param<float>("MaxEdgeBallRadius"), 0, 100);
+            ImGui::SliderFloat("MinEdgeBallRadius(curvature=1/r)", &param<float>("MinEdgeBallRadius"), 0, 10);
+            ImGui::SliderFloat("filterEdgeAtom2pointCloudDistance", &param<float>("filterDistance"), 0.1, 1000);
+            ImGui::SliderFloat("filterCandidatpt2UnshrinkingPtDistance", &param<float>("unshrinkingDist"), 0, 100);
+        }
+        void process();
+    };
+    
     class ExtractCandidatePtAllAtomsNode :public Node {
     public:
         using Node::Node;
@@ -417,8 +444,8 @@ namespace geoflow::nodes::mat {
             add_output("polylines", typeid(LineStringCollection));
         }
         void gui() {
-            ImGui::SliderFloat("min_error_thresh", &param<float>("min_error_thresh"), 0, 10);
-            ImGui::SliderInt("fit order", &param<int>("fit order"), 0, 5);
+            ImGui::SliderFloat("min_error_thresh", &param<float>("min_error_thresh"), 0, 15);
+            ImGui::SliderInt("fit order", &param<int>("fit order"), 1, 5);
         }
         void process();
     };
@@ -520,9 +547,10 @@ namespace geoflow::nodes::mat {
             add_input("ExtractedBreakline", typeid(LineStringCollection));
 
             add_output("TestBreakline", typeid(LineString));
+            add_output("TestBreakline4obj", typeid(LineStringCollection));
         }
         void gui() {
-            ImGui::SliderInt("BreaklineID", &param<int>("BreaklineID"), 1, 20);
+            ImGui::SliderInt("BreaklineID", &param<int>("BreaklineID"), 1, 40);
         }
         void process();
     };

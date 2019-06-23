@@ -18,6 +18,20 @@ namespace masb {
 
     void PolynomialFitting(const masb::PointList &pts, const int &order, masb::PointList &polyline,float &min_error);
 
+    struct condition_pram {
+    public:
+        float MaxEdgeBallRadius; //filter edge ball with big r
+        float MinEdgeBallRadius; //filter edge ball with small r
+        float filterDistance; //filter edge ball far away from ground
+        float unshrinkingDist;//distance from candidate pt (x,y,z_interpolation) to unshrinking point 
+        condition_pram(float r_x, float r_n, float d_p, float d_u) :MaxEdgeBallRadius(r_x),
+            MinEdgeBallRadius(r_n), filterDistance(d_p), unshrinkingDist(d_u) {
+            std::cout << "condition_pram constructor" << std::endl;
+        }
+    };
+    intList conditionFilter(masb::MAT &mat, masb::condition_pram& power, PointList &pointcloud,
+        PointList &unShrinkingPt, intList &seg_id);
+
     class coordinateTransformation_2d {
     public:
         masb::Vector_2d x_axis;
@@ -26,25 +40,6 @@ namespace masb {
         void InverseTransform(const masb::PointList &pts, masb::PointList &Transform_Pts);
     private:
         void ComputeNewAxis(const masb::PointList &input_pts);
-    };
-    
-
-    class idx_filter {
-    public:
-        void processing(ma_data &madata, ma_Geometry &maGeometry,intList &remaining_idx, 
-            mat_data &remainingData, ma_Geometry &remainingGeometry);
-        void processing(mat_data &madata, ma_Geometry &maGeometry, size_tList &remaining_idx,
-            mat_data &remainingData, ma_Geometry &remainingGeometry);
-        void processing(ma_data &madata, intList &remaining_idx,mat_data &remainingData);
-    };
-
-    class splitInOut {
-    private:
-        size_t size ;
-        size_t begin ;
-    public:
-        void processing(mat_data &madata, ma_Geometry &maGeometry, bool InFlag,
-            mat_data &madata_new, ma_Geometry &maGeometry_new);
     };
 
     //typedef std::variant<int, float, Point, Vector> vectype;
@@ -73,6 +68,4 @@ namespace masb {
 
 
 }
-
-
 #endif
